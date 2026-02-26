@@ -1,8 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
-db = "postgresql://reflection_user:reflection_user_2026@localhost:5432/daily_reflection_db"
+db = os.getenv("DATABASE_URL")
 engine = create_engine(db)
 SessionLocal = sessionmaker(engine)
 
