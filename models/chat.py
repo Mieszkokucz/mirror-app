@@ -1,0 +1,35 @@
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, text
+
+from database import Base
+
+
+class Session(Base):
+    __tablename__ = "session"
+
+    id = Column(
+        UUID, primary_key=True, nullable=False, server_default=text("gen_random_uuid()")
+    )
+    user_id = Column(UUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=text("NOW()")
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=text("NOW()")
+    )
+
+
+class Message(Base):
+    __tablename__ = "message"
+
+    id = Column(
+        UUID, primary_key=True, nullable=False, server_default=text("gen_random_uuid()")
+    )
+    session_id = Column(
+        UUID, ForeignKey("session.id", ondelete="CASCADE"), nullable=False
+    )
+    role = Column(String(30), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=text("NOW()")
+    )
