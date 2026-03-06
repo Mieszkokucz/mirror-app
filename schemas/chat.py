@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 import uuid
 from typing import Optional, Literal
+from datetime import datetime
 
 
 class ChatRequest(BaseModel):
@@ -12,3 +13,14 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     session_id: uuid.UUID
+
+
+class SessionResponse(BaseModel):
+    id: uuid.UUID
+    updated_at: datetime
+
+
+class MessageResponse(BaseModel):
+    role: str
+    content: str
+    created_at: datetime
