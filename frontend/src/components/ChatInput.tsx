@@ -18,7 +18,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    const lineHeight = 24; // px, roughly 1.5rem
+    const lineHeight = 24;
     const maxHeight = lineHeight * 4;
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }
@@ -45,7 +45,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   }
 
   return (
-    <div className="flex items-end gap-2 border-t border-gray-200 bg-white px-4 py-3">
+    <div className="flex items-end gap-2 border-t border-gray-800 bg-gray-950 px-4 py-3">
       <textarea
         ref={textareaRef}
         rows={1}
@@ -53,14 +53,14 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         onKeyDown={handleKeyDown}
         disabled={disabled}
         placeholder="Type a message..."
-        className="flex-1 resize-none rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex-1 resize-none rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 outline-none transition focus:border-gray-600 focus:ring-2 focus:ring-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
         style={{ minHeight: "40px", maxHeight: "96px", overflowY: "auto" }}
       />
       <button
         onClick={submitMessage}
         disabled={disabled}
         aria-label="Send message"
-        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-900 transition hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sendChatMessage, PromptType } from "@/lib/api";
-import { saveSession, buildLabel, SessionEntry } from "@/lib/sessions";
+import { sendChatMessage, fetchSessionMessages, PromptType } from "@/lib/api";
 import { PROMPT_META } from "@/lib/constants";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
@@ -15,7 +14,7 @@ interface Message {
 interface ChatWindowProps {
   sessionId: string | null;
   promptType: PromptType;
-  onSessionCreated: (sessionId: string, sessions: SessionEntry[]) => void;
+  onSessionCreated: (sessionId: string) => void;
 }
 
 export default function ChatWindow({
@@ -31,17 +30,31 @@ export default function ChatWindow({
   const shouldAutoScroll = useRef(true);
   const justCreatedSessionRef = useRef(false);
 
-  // Reset messages when session changes (skip if we just created this session)
+  // Load messages when session changes
   useEffect(() => {
     if (justCreatedSessionRef.current) {
       justCreatedSessionRef.current = false;
       return;
     }
-    setMessages([]);
     setError(null);
-  }, [sessionId, promptType]);
+    if (sessionId) {
+      setIsLoading(true);
+      fetchSessionMessages(sessionId)
+        .then((msgs) =>
+          setMessages(
+            msgs.map((m) => ({
+              role: m.role as "user" | "assistant",
+              content: m.content,
+            }))
+          )
+        )
+        .catch((err) => setError(err.message))
+        .finally(() => setIsLoading(false));
+    } else {
+      setMessages([]);
+    }
+  }, [sessionId]);
 
-  // Track whether user has scrolled up
   function handleScroll() {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -49,7 +62,6 @@ export default function ChatWindow({
     shouldAutoScroll.current = atBottom;
   }
 
-  // Auto-scroll only when already at bottom
   useEffect(() => {
     if (shouldAutoScroll.current) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -75,16 +87,8 @@ export default function ChatWindow({
       ]);
 
       if (!sessionId) {
-        const now = new Date().toISOString();
-        const label = buildLabel(promptType, now);
-        const updated = saveSession({
-          id: res.session_id,
-          label,
-          promptType,
-          createdAt: now,
-        });
         justCreatedSessionRef.current = true;
-        onSessionCreated(res.session_id, updated);
+        onSessionCreated(res.session_id);
       }
     } catch (err) {
       const errMessage =
@@ -99,7 +103,7 @@ export default function ChatWindow({
   const meta = PROMPT_META[promptType ?? "free_chat"];
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="flex h-full flex-col bg-gray-950">
       {/* Message area */}
       <div
         ref={scrollContainerRef}
@@ -110,13 +114,13 @@ export default function ChatWindow({
           {isEmpty ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="mb-4 text-4xl">{meta.emoji}</div>
-              <h2 className="mb-2 text-xl font-semibold text-gray-800">
+              <h2 className="mb-2 text-xl font-semibold text-gray-200">
                 {meta.label}
               </h2>
               <p className="max-w-sm text-sm text-gray-500">
                 {meta.description}
               </p>
-              <p className="mt-6 text-xs text-gray-400">
+              <p className="mt-6 text-xs text-gray-600">
                 Type a message below to get started.
               </p>
             </div>
@@ -127,7 +131,7 @@ export default function ChatWindow({
               ))}
               {isLoading && <LoadingDots />}
               {error && (
-                <div className="mt-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+                <div className="mt-2 rounded-lg bg-red-900/30 px-4 py-3 text-sm text-red-400">
                   {error}
                 </div>
               )}
@@ -148,10 +152,10 @@ export default function ChatWindow({
 function LoadingDots() {
   return (
     <div className="mb-3 flex justify-start">
-      <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-gray-100 px-4 py-3">
-        <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:0ms]" />
-        <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:150ms]" />
-        <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
+      <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm border border-gray-800 bg-gray-900 px-4 py-3">
+        <span className="h-2 w-2 animate-bounce rounded-full bg-gray-500 [animation-delay:0ms]" />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-gray-500 [animation-delay:150ms]" />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-gray-500 [animation-delay:300ms]" />
       </div>
     </div>
   );

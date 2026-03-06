@@ -1,40 +1,46 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PromptType } from "@/lib/api";
-import { loadSessions, SessionEntry } from "@/lib/sessions";
+import { PromptType, SessionResponse, fetchSessions } from "@/lib/api";
+import { USER_ID } from "@/lib/constants";
 import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
+import ReflectionsView from "@/components/ReflectionsView";
+
+type ActiveView = "chat" | "reflections";
 
 export default function Home() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeView, setActiveView] = useState<ActiveView>("chat");
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [activePromptType, setActivePromptType] = useState<PromptType>(null);
-  const [sessions, setSessions] = useState<SessionEntry[]>([]);
+  const [sessions, setSessions] = useState<SessionResponse[]>([]);
 
   useEffect(() => {
-    setSessions(loadSessions());
+    fetchSessions(USER_ID).then(setSessions).catch(() => {});
   }, []);
 
   function handleNewSession(promptType: PromptType) {
     setActiveSessionId(null);
     setActivePromptType(promptType);
+    setActiveView("chat");
     setIsSidebarOpen(false);
   }
 
-  function handleSelectSession(session: SessionEntry) {
-    setActiveSessionId(session.id);
-    setActivePromptType(session.promptType);
-    setIsSidebarOpen(false);
-  }
-
-  function handleSessionCreated(sessionId: string, updatedSessions: SessionEntry[]) {
+  function handleSelectSession(sessionId: string) {
     setActiveSessionId(sessionId);
-    setSessions(updatedSessions);
+    setActivePromptType(null);
+    setActiveView("chat");
+    setIsSidebarOpen(false);
+  }
+
+  function handleSessionCreated(sessionId: string) {
+    setActiveSessionId(sessionId);
+    fetchSessions(USER_ID).then(setSessions).catch(() => {});
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-950">
       {/* Mobile sidebar overlay */}
       {isSidebarOpen && (
         <div
@@ -43,10 +49,10 @@ export default function Home() {
         />
       )}
 
-      {/* Sidebar — fixed on mobile, static on desktop */}
+      {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-30 w-64 transform transition-transform duration-200 md:relative md:z-auto md:translate-x-0 md:w-64 md:flex-shrink-0 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-30 w-64 transform transition-transform duration-200 md:relative md:z-auto md:flex-shrink-0 ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:-translate-x-full"
         }`}
       >
         <Sidebar
@@ -54,17 +60,18 @@ export default function Home() {
           sessions={sessions}
           onNewSession={handleNewSession}
           onSelectSession={handleSelectSession}
+          onClose={() => setIsSidebarOpen(false)}
         />
       </div>
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile top bar */}
-        <div className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 md:hidden">
+        {/* Top bar */}
+        <div className="flex flex-shrink-0 items-center gap-3 border-b border-gray-800 bg-gray-950 px-4 py-3">
           <button
-            onClick={() => setIsSidebarOpen(true)}
-            aria-label="Open menu"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -81,16 +88,42 @@ export default function Home() {
               />
             </svg>
           </button>
-          <span className="font-semibold text-gray-900">Mirror</span>
+          <span className="text-sm font-semibold text-gray-200">Mirror</span>
+          <div className="ml-auto flex gap-1">
+            <button
+              onClick={() => setActiveView("chat")}
+              className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                activeView === "chat"
+                  ? "bg-gray-800 text-gray-100"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Chat
+            </button>
+            <button
+              onClick={() => setActiveView("reflections")}
+              className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                activeView === "reflections"
+                  ? "bg-gray-800 text-gray-100"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Reflections
+            </button>
+          </div>
         </div>
 
-        {/* Chat area */}
+        {/* Content area */}
         <div className="flex-1 overflow-hidden">
-          <ChatWindow
-            sessionId={activeSessionId}
-            promptType={activePromptType}
-            onSessionCreated={handleSessionCreated}
-          />
+          {activeView === "chat" ? (
+            <ChatWindow
+              sessionId={activeSessionId}
+              promptType={activePromptType}
+              onSessionCreated={handleSessionCreated}
+            />
+          ) : (
+            <ReflectionsView />
+          )}
         </div>
       </div>
     </div>

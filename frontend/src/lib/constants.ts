@@ -1,5 +1,7 @@
 export const API_BASE_URL = "http://localhost:8000";
 
+export const USER_ID = "b2769e58-414b-4d6e-b7b2-643db1616bda";
+
 export const PROMPT_META: Record<
   string,
   { label: string; emoji: string; description: string }
