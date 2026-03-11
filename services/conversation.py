@@ -8,7 +8,7 @@ SYSTEM_PROMPTS = {
 }
 
 
-def handle_chat(db, message, session_id, prompt_key):
+def handle_chat(db, message, session_id, prompt_key, model):
     if session_id is None:
         db_session = ChatSession(user_id="b2769e58-414b-4d6e-b7b2-643db1616bda")
         db.add(db_session)
@@ -36,7 +36,7 @@ def handle_chat(db, message, session_id, prompt_key):
     response = send_to_anthropic(
         message_to_llm,
         system_prompt=SYSTEM_PROMPTS.get(prompt_key, ""),
-        model="claude-haiku-4-5-20251001",
+        model=model,
     )
 
     # save assistant response

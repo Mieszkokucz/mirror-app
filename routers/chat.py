@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.post("/chat/", response_model=ChatResponse)
 def create_chat(chat: ChatRequest, db: Session = Depends(get_db)):
-    result = handle_chat(db, chat.message, chat.session_id, chat.prompt)
+    result = handle_chat(db, chat.message, chat.session_id, chat.prompt, chat.model)
     return result
 
 
