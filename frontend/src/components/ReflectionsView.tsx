@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchReflections, createReflection, ReflectionResponse } from "@/lib/api";
+import { fetchReflections, createReflection, updateReflection, deleteReflection, ReflectionResponse } from "@/lib/api";
 import { USER_ID } from "@/lib/constants";
 import Calendar from "./Calendar";
 
@@ -35,6 +35,11 @@ export default function ReflectionsView() {
   const [formContent, setFormContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editType, setEditType] = useState("morning");
+  const [editDate, setEditDate] = useState("");
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   function loadReflections() {
     fetchReflections(USER_ID)
@@ -77,6 +82,51 @@ export default function ReflectionsView() {
 
   function handleCancel() {
     resetForm();
+  }
+
+  function startEdit(r: ReflectionResponse) {
+    setEditingId(r.id);
+    setEditContent(r.content);
+    setEditType(r.reflection_type);
+    setEditDate(r.date);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditContent("");
+    setEditType("morning");
+    setEditDate("");
+  }
+
+  async function handleUpdate() {
+    if (!editingId || !editContent.trim()) return;
+    setIsSaving(true);
+    try {
+      await updateReflection(editingId, {
+        content: editContent.trim(),
+        reflection_type: editType,
+        date: editDate,
+      });
+      cancelEdit();
+      fetchReflections(USER_ID).then(setReflections).catch(() => {});
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to update reflection");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setIsSaving(true);
+    try {
+      await deleteReflection(id);
+      setIsDeleting(null);
+      fetchReflections(USER_ID).then(setReflections).catch(() => {});
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to delete reflection");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   const reflectionDates = new Set(reflections.map((r) => r.date));
@@ -206,12 +256,100 @@ export default function ReflectionsView() {
                       <div className="space-y-3">
                         {grouped.get(date)!.map((r) => (
                           <div key={r.id}>
-                            <span className="mb-1 inline-block rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400">
-                              {typeLabel(r.reflection_type)}
-                            </span>
-                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-300">
-                              {r.content}
-                            </p>
+                            {editingId === r.id ? (
+                              <div className="space-y-3">
+                                <div className="flex gap-3">
+                                  <div>
+                                    <label className="mb-1 block text-xs text-gray-500">Date</label>
+                                    <input
+                                      type="date"
+                                      value={editDate}
+                                      onChange={(e) => setEditDate(e.target.value)}
+                                      className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs text-gray-500">Type</label>
+                                    <select
+                                      value={editType}
+                                      onChange={(e) => setEditType(e.target.value)}
+                                      className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200"
+                                    >
+                                      <option value="morning">Morning</option>
+                                      <option value="afternoon">Afternoon</option>
+                                      <option value="evening">Evening</option>
+                                    </select>
+                                  </div>
+                                </div>
+                                <textarea
+                                  value={editContent}
+                                  onChange={(e) => setEditContent(e.target.value)}
+                                  rows={4}
+                                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={handleUpdate}
+                                    disabled={isSaving || !editContent.trim()}
+                                    className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-500 transition disabled:opacity-50"
+                                  >
+                                    {isSaving ? "Saving..." : "Save"}
+                                  </button>
+                                  <button
+                                    onClick={cancelEdit}
+                                    className="rounded-lg px-4 py-1.5 text-sm text-gray-400 hover:text-gray-200 transition"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : isDeleting === r.id ? (
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-gray-300">Delete this reflection?</span>
+                                <button
+                                  onClick={() => handleDelete(r.id)}
+                                  disabled={isSaving}
+                                  className="rounded-lg bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-500 transition disabled:opacity-50"
+                                >
+                                  {isSaving ? "Deleting..." : "Delete"}
+                                </button>
+                                <button
+                                  onClick={() => setIsDeleting(null)}
+                                  className="rounded-lg px-3 py-1 text-sm text-gray-400 hover:text-gray-200 transition"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-block rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400">
+                                    {typeLabel(r.reflection_type)}
+                                  </span>
+                                  <button
+                                    onClick={() => startEdit(r)}
+                                    className="rounded p-1 text-gray-600 hover:text-gray-300 transition"
+                                    title="Edit"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
+                                      <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.05 10.476a.75.75 0 0 0-.19.336l-.893 3.214a.75.75 0 0 0 .926.926l3.214-.893a.75.75 0 0 0 .336-.19l7.963-7.963a1.75 1.75 0 0 0 0-2.475l-.918-.918ZM11.72 3.22a.25.25 0 0 1 .354 0l.918.918a.25.25 0 0 1 0 .354L12 5.484 10.516 4l.992-.992.212-.212v.424-.424ZM9.81 4.706l1.484 1.484-5.965 5.965-2.035.565.565-2.035 5.951-5.98Z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => setIsDeleting(r.id)}
+                                    className="rounded p-1 text-gray-600 hover:text-red-400 transition"
+                                    title="Delete"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
+                                      <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5A.75.75 0 0 1 9.95 6Z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-gray-300">
+                                  {r.content}
+                                </p>
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>

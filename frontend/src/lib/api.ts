@@ -87,6 +87,35 @@ export async function createReflection(data: ReflectionCreate): Promise<void> {
   }
 }
 
+export interface ReflectionUpdate {
+  reflection_type?: string;
+  content?: string;
+  date?: string;
+}
+
+export async function updateReflection(id: string, data: ReflectionUpdate): Promise<ReflectionResponse> {
+  const res = await fetch(`${API_BASE_URL}/reflections/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<ReflectionResponse>;
+}
+
+export async function deleteReflection(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/reflections/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+}
+
 export async function fetchReflections(userId: string): Promise<ReflectionResponse[]> {
   const res = await fetch(`${API_BASE_URL}/reflections/?user_id=${userId}`);
   if (!res.ok) {
