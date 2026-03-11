@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { sendChatMessage, fetchSessionMessages, PromptType } from "@/lib/api";
-import { PROMPT_META } from "@/lib/constants";
+import { PROMPT_META, MODELS, DEFAULT_MODEL } from "@/lib/constants";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 
@@ -25,6 +25,7 @@ export default function ChatWindow({
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [model, setModel] = useState(DEFAULT_MODEL);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScroll = useRef(true);
@@ -79,6 +80,7 @@ export default function ChatWindow({
         message,
         session_id: sessionId ?? null,
         prompt: sessionId ? undefined : promptType,
+        model,
       });
 
       setMessages((prev) => [
@@ -143,7 +145,13 @@ export default function ChatWindow({
 
       {/* Input area */}
       <div className="mx-auto w-full max-w-3xl">
-        <ChatInput onSend={handleSend} disabled={isLoading} />
+        <ChatInput
+          onSend={handleSend}
+          disabled={isLoading}
+          models={MODELS}
+          selectedModel={model}
+          onModelChange={setModel}
+        />
       </div>
     </div>
   );

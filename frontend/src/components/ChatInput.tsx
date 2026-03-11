@@ -2,12 +2,20 @@
 
 import { useEffect, useRef, KeyboardEvent } from "react";
 
+interface ModelOption {
+  value: string;
+  label: string;
+}
+
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled: boolean;
+  models: readonly ModelOption[];
+  selectedModel: string;
+  onModelChange: (model: string) => void;
 }
 
-export default function ChatInput({ onSend, disabled }: ChatInputProps) {
+export default function ChatInput({ onSend, disabled, models, selectedModel, onModelChange }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -46,6 +54,18 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
 
   return (
     <div className="flex items-end gap-2 border-t border-gray-800 bg-gray-950 px-4 py-3">
+      <select
+        value={selectedModel}
+        onChange={(e) => onModelChange(e.target.value)}
+        disabled={disabled}
+        className="h-10 flex-shrink-0 rounded-xl border border-gray-800 bg-gray-900 px-2 text-sm text-gray-100 outline-none transition focus:border-gray-600 focus:ring-2 focus:ring-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {models.map((m) => (
+          <option key={m.value} value={m.value}>
+            {m.label}
+          </option>
+        ))}
+      </select>
       <textarea
         ref={textareaRef}
         rows={1}

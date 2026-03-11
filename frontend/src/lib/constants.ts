@@ -2,6 +2,13 @@ export const API_BASE_URL = "http://localhost:8000";
 
 export const USER_ID = "b2769e58-414b-4d6e-b7b2-643db1616bda";
 
+export const MODELS = [
+  { value: "claude-haiku-4-5-20251001", label: "Haiku" },
+  { value: "claude-sonnet-4-20250514", label: "Sonnet" },
+] as const;
+
+export const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
+
 export const PROMPT_META: Record<
   string,
   { label: string; emoji: string; description: string }
