@@ -9,6 +9,13 @@ export const MODELS = [
 
 export const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
 
+export const PROMPTS = [
+  { value: "free_chat", label: "Free Chat" },
+  { value: "morning_reflection", label: "Morning Reflection" },
+] as const;
+
+export const DEFAULT_PROMPT = "free_chat";
+
 export const PROMPT_META: Record<
   string,
   { label: string; emoji: string; description: string }

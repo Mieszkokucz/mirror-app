@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, KeyboardEvent } from "react";
 
-interface ModelOption {
+interface SelectOption {
   value: string;
   label: string;
 }
@@ -10,12 +10,16 @@ interface ModelOption {
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled: boolean;
-  models: readonly ModelOption[];
+  models: readonly SelectOption[];
   selectedModel: string;
   onModelChange: (model: string) => void;
+  prompts: readonly SelectOption[];
+  selectedPrompt: string;
+  onPromptChange: (prompt: string) => void;
+  showPromptSelector: boolean;
 }
 
-export default function ChatInput({ onSend, disabled, models, selectedModel, onModelChange }: ChatInputProps) {
+export default function ChatInput({ onSend, disabled, models, selectedModel, onModelChange, prompts, selectedPrompt, onPromptChange, showPromptSelector }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -54,6 +58,20 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
 
   return (
     <div className="flex items-end gap-2 border-t border-gray-800 bg-gray-950 px-4 py-3">
+      {showPromptSelector && (
+        <select
+          value={selectedPrompt}
+          onChange={(e) => onPromptChange(e.target.value)}
+          disabled={disabled}
+          className="h-10 flex-shrink-0 rounded-xl border border-gray-800 bg-gray-900 px-2 text-sm text-gray-100 outline-none transition focus:border-gray-600 focus:ring-2 focus:ring-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {prompts.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      )}
       <select
         value={selectedModel}
         onChange={(e) => onModelChange(e.target.value)}

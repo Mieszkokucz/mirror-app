@@ -7,7 +7,7 @@ from datetime import datetime
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[uuid.UUID] = None
-    prompt: Optional[Literal["morning_reflection"]] = None
+    prompt: Literal[None, "morning_reflection"] = None
     model: Literal["claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"] = (
         "claude-haiku-4-5-20251001"
     )

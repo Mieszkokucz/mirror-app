@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sendChatMessage, fetchSessionMessages, PromptType } from "@/lib/api";
-import { PROMPT_META, MODELS, DEFAULT_MODEL } from "@/lib/constants";
+import { sendChatMessage, fetchSessionMessages } from "@/lib/api";
+import { PROMPT_META, MODELS, DEFAULT_MODEL, PROMPTS, DEFAULT_PROMPT } from "@/lib/constants";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 
@@ -13,19 +13,18 @@ interface Message {
 
 interface ChatWindowProps {
   sessionId: string | null;
-  promptType: PromptType;
   onSessionCreated: (sessionId: string) => void;
 }
 
 export default function ChatWindow({
   sessionId,
-  promptType,
   onSessionCreated,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [model, setModel] = useState(DEFAULT_MODEL);
+  const [promptValue, setPromptValue] = useState(DEFAULT_PROMPT);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScroll = useRef(true);
@@ -76,10 +75,11 @@ export default function ChatWindow({
     shouldAutoScroll.current = true;
 
     try {
+      const apiPrompt = promptValue === "free_chat" ? undefined : promptValue as "morning_reflection";
       const res = await sendChatMessage({
         message,
         session_id: sessionId ?? null,
-        prompt: sessionId ? undefined : promptType,
+        prompt: apiPrompt,
         model,
       });
 
@@ -102,7 +102,7 @@ export default function ChatWindow({
   }
 
   const isEmpty = messages.length === 0 && !isLoading;
-  const meta = PROMPT_META[promptType ?? "free_chat"];
+  const meta = PROMPT_META[promptValue];
 
   return (
     <div className="flex h-full flex-col bg-gray-950">
@@ -151,6 +151,10 @@ export default function ChatWindow({
           models={MODELS}
           selectedModel={model}
           onModelChange={setModel}
+          prompts={PROMPTS}
+          selectedPrompt={promptValue}
+          onPromptChange={setPromptValue}
+          showPromptSelector={true}
         />
       </div>
     </div>

@@ -1,11 +1,11 @@
 "use client";
 
-import { PromptType, SessionResponse } from "@/lib/api";
+import { SessionResponse } from "@/lib/api";
 
 interface SidebarProps {
   activeSessionId: string | null;
   sessions: SessionResponse[];
-  onNewSession: (promptType: PromptType) => void;
+  onNewSession: () => void;
   onSelectSession: (sessionId: string) => void;
   onClose: () => void;
 }
@@ -73,19 +73,13 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* New session buttons */}
-      <div className="flex-shrink-0 space-y-2 px-3 py-3">
+      {/* New session button */}
+      <div className="flex-shrink-0 px-3 py-3">
         <button
-          onClick={() => onNewSession("morning_reflection")}
+          onClick={onNewSession}
           className="w-full rounded-lg bg-gray-800 px-3 py-2 text-left text-sm font-medium text-gray-200 transition hover:bg-gray-700"
         >
-          + Morning Reflection
-        </button>
-        <button
-          onClick={() => onNewSession(null)}
-          className="w-full rounded-lg bg-gray-800 px-3 py-2 text-left text-sm font-medium text-gray-200 transition hover:bg-gray-700"
-        >
-          + Free Chat
+          + New Chat
         </button>
       </div>
 
