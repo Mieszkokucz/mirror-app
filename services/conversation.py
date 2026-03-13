@@ -8,9 +8,9 @@ SYSTEM_PROMPTS = {
 }
 
 
-def handle_chat(db, message, session_id, prompt_key, model):
+def handle_chat(db, user_id, message, session_id, prompt_key, model):
     if session_id is None:
-        db_session = ChatSession(user_id="b2769e58-414b-4d6e-b7b2-643db1616bda")
+        db_session = ChatSession(user_id=user_id)
         db.add(db_session)
         db.commit()
         db.refresh(db_session)

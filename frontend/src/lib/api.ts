@@ -7,6 +7,7 @@ export interface ChatRequest {
   session_id?: string | null;
   prompt?: PromptType;
   model?: string;
+  user_id: string;
 }
 
 export interface ChatResponse {

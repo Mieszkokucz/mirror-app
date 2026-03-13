@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { sendChatMessage, fetchSessionMessages } from "@/lib/api";
-import { PROMPT_META, MODELS, DEFAULT_MODEL, PROMPTS, DEFAULT_PROMPT } from "@/lib/constants";
+import { PROMPT_META, MODELS, DEFAULT_MODEL, PROMPTS, DEFAULT_PROMPT, USER_ID } from "@/lib/constants";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 
@@ -81,6 +81,7 @@ export default function ChatWindow({
         session_id: sessionId ?? null,
         prompt: apiPrompt,
         model,
+        user_id: USER_ID,
       });
 
       setMessages((prev) => [
