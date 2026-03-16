@@ -4,7 +4,7 @@ services:
       ports:
         - 5432:5432
       environment:
-        - POSTGRES_USER=reflecsion_user
+        - POSTGRES_USER=reflection_user
         - POSTGRES_PASSWORD=reflection_user_2026
         - POSTGRES_DB=reflection_db
       volumes:
