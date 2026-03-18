@@ -2,6 +2,7 @@ from pydantic import BaseModel
 import uuid
 import datetime
 from typing import Optional
+from pydantic import ConfigDict
 
 
 class DailyReflectionCreate(BaseModel):
@@ -20,8 +21,7 @@ class DailyReflectionResponse(BaseModel):
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DailyReflectionUpdate(BaseModel):
