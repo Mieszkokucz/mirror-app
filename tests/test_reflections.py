@@ -1,39 +1,26 @@
-def test_create_reflection(client, db_session):
-    from models.reflections import Users
+import uuid
 
-    user = Users(nick="testuser")
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
 
+def test_create_reflection(client, test_user):
     response = client.post(
         "/reflections/",
         json={
-            "user_id": str(user.id),
+            "user_id": str(test_user.id),
             "reflection_type": "morning",
             "content": "testcontent",
             "date": "2026-03-17",
         },
     )
-
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
 
 
-def test_get_reflections_list(client, db_session):
-    from models.reflections import Users
-
-    # add user
-    user = Users(nick="testuser")
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-
+def test_get_reflections_list(client, test_user):
     # post reflections
     client.post(
         "/reflections/",
         json={
-            "user_id": str(user.id),
+            "user_id": str(test_user.id),
             "reflection_type": "morning",
             "content": "testcontent",
             "date": "2026-03-17",
@@ -42,16 +29,15 @@ def test_get_reflections_list(client, db_session):
     client.post(
         "/reflections/",
         json={
-            "user_id": str(user.id),
+            "user_id": str(test_user.id),
             "reflection_type": "evening",
             "content": "testcontent2",
             "date": "2026-03-18",
         },
     )
 
-    response = client.get("/reflections/", params={"user_id": str(user.id)})
+    response = client.get("/reflections/", params={"user_id": str(test_user.id)})
 
-    # print(response.json())
     assert response.status_code == 200
     assert len(response.json()) == 2
     assert response.json()[0]["reflection_type"] == "morning"
@@ -60,40 +46,15 @@ def test_get_reflections_list(client, db_session):
     assert response.json()[1]["content"] == "testcontent2"
 
 
-def test_get_reflections_empty(client, db_session):
-    from models.reflections import Users
-
-    # add user
-    user = Users(nick="testuser")
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-
-    response = client.get("/reflections/", params={"user_id": str(user.id)})
+def test_get_reflections_empty(client, test_user):
+    response = client.get("/reflections/", params={"user_id": str(test_user.id)})
 
     assert response.status_code == 200
     assert len(response.json()) == 0
 
 
-def test_get_reflection_by_id(client, db_session):
-    from models.reflections import Users
-    from models.reflections import DailyReflection
-
-    # add user
-    user = Users(nick="testuser")
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-
-    # create reflections
-    reflection = DailyReflection(
-        user_id=user.id, reflection_type="morning", date="2026-03-19", content="test"
-    )
-    db_session.add(reflection)
-    db_session.commit()
-    db_session.refresh(reflection)
-
-    response = client.get(f"/reflections/{reflection.id}")
+def test_get_reflection_by_id(client, test_reflection):
+    response = client.get(f"/reflections/{test_reflection.id}")
 
     assert response.status_code == 200
     assert isinstance(response.json(), dict)
@@ -102,13 +63,45 @@ def test_get_reflection_by_id(client, db_session):
 
 
 def test_get_reflection_by_id_not_found(client):
-    import uuid
-
     response = client.get(f"/reflections/{uuid.uuid4()}")
     assert response.status_code == 404
 
 
-# 4. test_update_reflection — PATCH with partial data, check updated fields
-# 5. test_update_reflection_not_found — random UUID → 404
-# 6. test_delete_reflection — DELETE, check 204, confirm it's
-# 7. test_delete_reflection_not_found — random UUID → 404
+def test_update_reflection(client, test_reflection):
+
+    # update reflection
+    response = client.patch(
+        f"/reflections/{test_reflection.id}",
+        json={
+            "reflection_type": "evening",
+            "content": "test content after update",
+            "date": "2026-03-17",
+        },
+    )
+
+    assert response.status_code == 200
+    assert isinstance(response.json(), dict)
+    assert response.json()["reflection_type"] == "evening"
+    assert response.json()["content"] == "test content after update"
+
+
+def test_update_reflection_not_found(client):
+    # update non existing reflection
+    response = client.patch(
+        f"/reflections/{uuid.uuid4()}",
+        json={"reflection_type": "evening"},
+    )
+    assert response.status_code == 404
+
+
+def test_delete_reflection(client, test_reflection):
+    # delete reflection
+    response = client.delete(f"/reflections/{test_reflection.id}")
+
+    assert response.status_code == 204
+
+
+def test_delete_reflection_not_found(client):
+    # delete non existing reflection
+    response = client.delete(f"/reflections/{uuid.uuid4()}")
+    assert response.status_code == 404
