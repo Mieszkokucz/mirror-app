@@ -64,18 +64,3 @@ def test_reflection(db_session, test_user):
     db_session.refresh(reflection)
 
     yield reflection
-
-
-@pytest.fixture
-def test_session(db_session, test_user):
-    reflection = DailyReflection(
-        user_id=test_user.id,
-        reflection_type="morning",
-        date="2026-03-19",
-        content="test",
-    )
-    db_session.add(reflection)
-    db_session.commit()
-    db_session.refresh(reflection)
-
-    yield reflection
