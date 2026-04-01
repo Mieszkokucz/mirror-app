@@ -1,14 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sendChatMessage, fetchSessionMessages } from "@/lib/api";
-import { PROMPT_META, MODELS, DEFAULT_MODEL, PROMPTS, DEFAULT_PROMPT, USER_ID } from "@/lib/constants";
+import { sendChatMessage, fetchSessionMessages, fetchSystemPrompts } from "@/lib/api";
+import { MODELS, DEFAULT_MODEL, FREE_CHAT_ID, FREE_CHAT_META, USER_ID } from "@/lib/constants";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+interface PromptOption {
+  value: string;
+  label: string;
 }
 
 interface ChatWindowProps {
@@ -24,11 +29,29 @@ export default function ChatWindow({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [model, setModel] = useState(DEFAULT_MODEL);
-  const [promptValue, setPromptValue] = useState(DEFAULT_PROMPT);
+  const [promptValue, setPromptValue] = useState(FREE_CHAT_ID);
+  const [prompts, setPrompts] = useState<readonly PromptOption[]>([
+    { value: FREE_CHAT_ID, label: FREE_CHAT_META.label },
+  ]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScroll = useRef(true);
   const justCreatedSessionRef = useRef(false);
+
+  // Load available prompts from API
+  useEffect(() => {
+    fetchSystemPrompts(USER_ID)
+      .then((dbPrompts) => {
+        const options: PromptOption[] = [
+          { value: FREE_CHAT_ID, label: FREE_CHAT_META.label },
+          ...dbPrompts.map((p) => ({ value: p.id, label: p.display_name })),
+        ];
+        setPrompts(options);
+      })
+      .catch(() => {
+        // keep default free_chat option on error
+      });
+  }, []);
 
   // Load messages when session changes
   useEffect(() => {
@@ -75,11 +98,10 @@ export default function ChatWindow({
     shouldAutoScroll.current = true;
 
     try {
-      const apiPrompt = promptValue === "free_chat" ? undefined : promptValue as "morning_reflection";
       const res = await sendChatMessage({
         message,
         session_id: sessionId ?? null,
-        prompt: apiPrompt,
+        prompt_id: promptValue === FREE_CHAT_ID ? undefined : promptValue,
         model,
         user_id: USER_ID,
       });
@@ -103,7 +125,11 @@ export default function ChatWindow({
   }
 
   const isEmpty = messages.length === 0 && !isLoading;
-  const meta = PROMPT_META[promptValue];
+  const currentPrompt = prompts.find((p) => p.value === promptValue);
+  const isFreeChatSelected = promptValue === FREE_CHAT_ID;
+  const displayMeta = isFreeChatSelected
+    ? FREE_CHAT_META
+    : { label: currentPrompt?.label ?? "Prompt", emoji: "📝", description: "Guided reflection session." };
 
   return (
     <div className="flex h-full flex-col bg-gray-950">
@@ -116,12 +142,12 @@ export default function ChatWindow({
         <div className="mx-auto max-w-3xl">
           {isEmpty ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="mb-4 text-4xl">{meta.emoji}</div>
+              <div className="mb-4 text-4xl">{displayMeta.emoji}</div>
               <h2 className="mb-2 text-xl font-semibold text-gray-200">
-                {meta.label}
+                {displayMeta.label}
               </h2>
               <p className="max-w-sm text-sm text-gray-500">
-                {meta.description}
+                {displayMeta.description}
               </p>
               <p className="mt-6 text-xs text-gray-600">
                 Type a message below to get started.
@@ -152,7 +178,7 @@ export default function ChatWindow({
           models={MODELS}
           selectedModel={model}
           onModelChange={setModel}
-          prompts={PROMPTS}
+          prompts={prompts}
           selectedPrompt={promptValue}
           onPromptChange={setPromptValue}
           showPromptSelector={true}

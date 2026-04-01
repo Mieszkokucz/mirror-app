@@ -1,11 +1,9 @@
 import { API_BASE_URL } from "./constants";
 
-export type PromptType = "morning_reflection" | null;
-
 export interface ChatRequest {
   message: string;
   session_id?: string | null;
-  prompt?: PromptType;
+  prompt_id?: string | null;
   model?: string;
   user_id: string;
 }
@@ -115,6 +113,21 @@ export async function deleteReflection(id: string): Promise<void> {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
   }
+}
+
+export interface SystemPromptResponse {
+  id: string;
+  name: string;
+  display_name: string;
+}
+
+export async function fetchSystemPrompts(userId: string): Promise<SystemPromptResponse[]> {
+  const res = await fetch(`${API_BASE_URL}/system-prompts/?user_id=${userId}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<SystemPromptResponse[]>;
 }
 
 export async function fetchReflections(userId: string): Promise<ReflectionResponse[]> {

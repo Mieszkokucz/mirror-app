@@ -9,27 +9,11 @@ export const MODELS = [
 
 export const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
 
-export const PROMPTS = [
-  { value: "free_chat", label: "Free Chat" },
-  { value: "morning_reflection", label: "Morning Reflection" },
-] as const;
+export const FREE_CHAT_ID = "free_chat";
 
-export const DEFAULT_PROMPT = "free_chat";
-
-export const PROMPT_META: Record<
-  string,
-  { label: string; emoji: string; description: string }
-> = {
-  morning_reflection: {
-    label: "Morning Reflection",
-    emoji: "🌅",
-    description:
-      "Start your day with a guided reflection. Share how you are feeling, what is on your mind, or what you want to focus on today.",
-  },
-  free_chat: {
-    label: "Free Chat",
-    emoji: "💬",
-    description:
-      "Open conversation with no specific prompt. Ask anything, think out loud, or just explore your thoughts.",
-  },
+export const FREE_CHAT_META = {
+  label: "Free Chat",
+  emoji: "💬",
+  description:
+    "Open conversation with no specific prompt. Ask anything, think out loud, or just explore your thoughts.",
 };

@@ -68,6 +68,45 @@ def test_create_chat_new_session(mock_llm, client, test_user):
 
 
 @patch("services.conversation.send_to_anthropic", return_value="mocked response")
+def test_create_chat_with_prompt_id(mock_llm, client, db_session, test_user):
+    from models.system_prompts import SystemPrompt
+
+    prompt = SystemPrompt(
+        name="test_prompt",
+        display_name="Test",
+        content="You are a test assistant.",
+    )
+    db_session.add(prompt)
+    db_session.commit()
+    db_session.refresh(prompt)
+
+    response = client.post(
+        "/chat/",
+        json={
+            "message": "hi",
+            "user_id": str(test_user.id),
+            "prompt_id": str(prompt.id),
+        },
+    )
+    assert response.status_code == 200
+    call_kwargs = mock_llm.call_args
+    assert call_kwargs[1]["system_prompt"] == "You are a test assistant."
+
+
+@patch("services.conversation.send_to_anthropic", return_value="mocked response")
+def test_create_chat_with_invalid_prompt_id(mock_llm, client, test_user):
+    response = client.post(
+        "/chat/",
+        json={
+            "message": "hi",
+            "user_id": str(test_user.id),
+            "prompt_id": str(uuid.uuid4()),
+        },
+    )
+    assert response.status_code == 404
+
+
+@patch("services.conversation.send_to_anthropic", return_value="mocked response")
 def test_create_chat_existing_session(mock_llm, client, db_session, test_user):
     # add session
     session = Session(user_id=test_user.id)
