@@ -29,6 +29,7 @@ if config.config_file_name is not None:
 from database import Base
 import models.reflections
 import models.chat
+import models.system_prompts
 
 target_metadata = Base.metadata
 
