@@ -1,5 +1,13 @@
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, text
+from sqlalchemy import (
+    Column,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    text,
+    CheckConstraint,
+)
 
 from database import Base
 
@@ -32,4 +40,7 @@ class Message(Base):
     content = Column(Text, nullable=False)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=text("NOW()")
+    )
+    __table_args__ = (
+        CheckConstraint("role IN ('user', 'assistant')", name="ck__message__role"),
     )

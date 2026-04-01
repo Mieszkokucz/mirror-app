@@ -9,13 +9,18 @@ services:
         - POSTGRES_DB=reflection_db
       volumes:
         - pgdata:/var/lib/postgresql/data
-        - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U reflection_user -d reflection_db"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
     api:
       build: .
       ports:
         - 8000:8000
       depends_on:
-        - db
+        db:
+          condition: service_healthy
       environment:
         - DATABASE_URL=postgresql://reflection_user:reflection_user_2026@db:5432/reflection_db
         - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}

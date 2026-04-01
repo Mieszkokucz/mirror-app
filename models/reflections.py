@@ -1,5 +1,15 @@
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy import Column, String, Text, Date, DateTime, ForeignKey, text
+from sqlalchemy import (
+    Column,
+    String,
+    Text,
+    Date,
+    DateTime,
+    ForeignKey,
+    text,
+    CheckConstraint,
+    UniqueConstraint,
+)
 
 from database import Base
 
@@ -31,6 +41,19 @@ class DailyReflection(Base):
         DateTime(timezone=True), nullable=False, server_default=text("NOW()")
     )
 
+    __table_args__ = (
+        CheckConstraint(
+            "reflection_type IN ('morning', 'midday', 'evening')",
+            name="ck__daily_reflection__reflection_type",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "date",
+            "reflection_type",
+            name="uq__daily_reflection__user_id__date__reflection_type",
+        ),
+    )
+
 
 class PeriodicReflection(Base):
     __tablename__ = "periodic_reflection"
@@ -48,4 +71,18 @@ class PeriodicReflection(Base):
     )
     updated_at = Column(
         DateTime(timezone=True), nullable=False, server_default=text("NOW()")
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "reflection_type IN ('weekly', 'monthly')",
+            name="ck__periodic_reflection__reflection_type",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "date_from",
+            "date_to",
+            "reflection_type",
+            name="uq__periodic_reflection__user_date_from_to_type",
+        ),
     )
