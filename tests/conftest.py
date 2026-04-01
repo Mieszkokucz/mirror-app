@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from models.reflections import Users
 from models.reflections import DailyReflection
+from models.system_prompts import SystemPrompt
 
 
 load_dotenv()
@@ -64,3 +65,33 @@ def test_reflection(db_session, test_user):
     db_session.refresh(reflection)
 
     yield reflection
+
+
+@pytest.fixture
+def test_system_prompt(db_session, test_user):
+    prompt = SystemPrompt(
+        user_id=test_user.id,
+        name="test_prompt",
+        display_name="Test Prompt",
+        content="You are a test assistant.",
+    )
+    db_session.add(prompt)
+    db_session.commit()
+    db_session.refresh(prompt)
+
+    yield prompt
+
+
+@pytest.fixture
+def test_builtin_prompt(db_session):
+    prompt = SystemPrompt(
+        user_id=None,
+        name="builtin_prompt",
+        display_name="Built-in Prompt",
+        content="Built-in system prompt.",
+    )
+    db_session.add(prompt)
+    db_session.commit()
+    db_session.refresh(prompt)
+
+    yield prompt

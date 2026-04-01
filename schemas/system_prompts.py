@@ -8,7 +8,7 @@ class SystemPromptCreate(BaseModel):
     name: str
     display_name: str
     content: str
-    user_id: uuid.UUID
+    user_id: Optional[uuid.UUID]
 
 
 class SystemPromptResponse(BaseModel):
