@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from routers.reflections import router as reflections_router
 from routers.chat import router as chat_router
+from routers.system_prompts import router as system_prompts_router
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -15,3 +16,4 @@ app.add_middleware(
 
 app.include_router(reflections_router)
 app.include_router(chat_router)
+app.include_router(system_prompts_router)
