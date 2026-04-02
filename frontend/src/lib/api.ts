@@ -117,8 +117,25 @@ export async function deleteReflection(id: string): Promise<void> {
 
 export interface SystemPromptResponse {
   id: string;
+  user_id: string | null;
   name: string;
   display_name: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SystemPromptCreate {
+  name: string;
+  display_name: string;
+  content: string;
+  user_id: string;
+}
+
+export interface SystemPromptUpdate {
+  name?: string;
+  display_name?: string;
+  content?: string;
 }
 
 export async function fetchSystemPrompts(userId: string): Promise<SystemPromptResponse[]> {
@@ -128,6 +145,42 @@ export async function fetchSystemPrompts(userId: string): Promise<SystemPromptRe
     throw new Error(`API error ${res.status}: ${text}`);
   }
   return res.json() as Promise<SystemPromptResponse[]>;
+}
+
+export async function createSystemPrompt(data: SystemPromptCreate): Promise<SystemPromptResponse> {
+  const res = await fetch(`${API_BASE_URL}/system-prompts/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<SystemPromptResponse>;
+}
+
+export async function updateSystemPrompt(id: string, data: SystemPromptUpdate): Promise<SystemPromptResponse> {
+  const res = await fetch(`${API_BASE_URL}/system-prompts/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<SystemPromptResponse>;
+}
+
+export async function deleteSystemPrompt(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/system-prompts/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
 }
 
 export async function fetchReflections(userId: string): Promise<ReflectionResponse[]> {

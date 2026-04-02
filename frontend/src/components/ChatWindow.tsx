@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sendChatMessage, fetchSessionMessages, fetchSystemPrompts } from "@/lib/api";
+import { sendChatMessage, fetchSessionMessages, SystemPromptResponse } from "@/lib/api";
 import { MODELS, DEFAULT_MODEL, FREE_CHAT_ID, FREE_CHAT_META, USER_ID } from "@/lib/constants";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
@@ -19,39 +19,27 @@ interface PromptOption {
 interface ChatWindowProps {
   sessionId: string | null;
   onSessionCreated: (sessionId: string) => void;
+  prompts: SystemPromptResponse[];
 }
 
 export default function ChatWindow({
   sessionId,
   onSessionCreated,
+  prompts: dbPrompts,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [promptValue, setPromptValue] = useState(FREE_CHAT_ID);
-  const [prompts, setPrompts] = useState<readonly PromptOption[]>([
+  const prompts: readonly PromptOption[] = [
     { value: FREE_CHAT_ID, label: FREE_CHAT_META.label },
-  ]);
+    ...dbPrompts.map((p) => ({ value: p.id, label: p.display_name })),
+  ];
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScroll = useRef(true);
   const justCreatedSessionRef = useRef(false);
-
-  // Load available prompts from API
-  useEffect(() => {
-    fetchSystemPrompts(USER_ID)
-      .then((dbPrompts) => {
-        const options: PromptOption[] = [
-          { value: FREE_CHAT_ID, label: FREE_CHAT_META.label },
-          ...dbPrompts.map((p) => ({ value: p.id, label: p.display_name })),
-        ];
-        setPrompts(options);
-      })
-      .catch(() => {
-        // keep default free_chat option on error
-      });
-  }, []);
 
   // Load messages when session changes
   useEffect(() => {

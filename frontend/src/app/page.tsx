@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SessionResponse, fetchSessions } from "@/lib/api";
+import { SessionResponse, SystemPromptResponse, fetchSessions, fetchSystemPrompts } from "@/lib/api";
 import { USER_ID } from "@/lib/constants";
 import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
 import ReflectionsView from "@/components/ReflectionsView";
+import PromptPanel, { PromptPanelMode } from "@/components/PromptPanel";
 
 type ActiveView = "chat" | "reflections";
 
@@ -14,9 +15,20 @@ export default function Home() {
   const [activeView, setActiveView] = useState<ActiveView>("chat");
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionResponse[]>([]);
+  const [prompts, setPrompts] = useState<SystemPromptResponse[]>([]);
+
+  // Prompt panel state
+  const [promptPanelOpen, setPromptPanelOpen] = useState(false);
+  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
+  const [promptPanelMode, setPromptPanelMode] = useState<PromptPanelMode>("view");
+
+  function reloadPrompts() {
+    fetchSystemPrompts(USER_ID).then(setPrompts).catch(() => {});
+  }
 
   useEffect(() => {
     fetchSessions(USER_ID).then(setSessions).catch(() => {});
+    reloadPrompts();
   }, []);
 
   function handleNewSession() {
@@ -34,6 +46,43 @@ export default function Home() {
     setActiveSessionId(sessionId);
     fetchSessions(USER_ID).then(setSessions).catch(() => {});
   }
+
+  // Prompt panel handlers
+  function handleSelectPrompt(id: string) {
+    setSelectedPromptId(id);
+    setPromptPanelMode("view");
+    setPromptPanelOpen(true);
+  }
+
+  function handleEditPrompt(id: string) {
+    setSelectedPromptId(id);
+    setPromptPanelMode("edit");
+    setPromptPanelOpen(true);
+  }
+
+  function handleDeletePrompt(id: string) {
+    setSelectedPromptId(id);
+    setPromptPanelMode("view");
+    setPromptPanelOpen(true);
+  }
+
+  function handleCreatePrompt() {
+    setSelectedPromptId(null);
+    setPromptPanelMode("create");
+    setPromptPanelOpen(true);
+  }
+
+  function handlePromptPanelClose() {
+    setPromptPanelOpen(false);
+    setSelectedPromptId(null);
+  }
+
+  function handlePromptSaved() {
+    reloadPrompts();
+    handlePromptPanelClose();
+  }
+
+  const selectedPrompt = prompts.find((p) => p.id === selectedPromptId) ?? null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-950">
@@ -54,6 +103,12 @@ export default function Home() {
         <Sidebar
           activeSessionId={activeSessionId}
           sessions={sessions}
+          prompts={prompts}
+          selectedPromptId={selectedPromptId}
+          onSelectPrompt={handleSelectPrompt}
+          onEditPrompt={handleEditPrompt}
+          onDeletePrompt={handleDeletePrompt}
+          onCreatePrompt={handleCreatePrompt}
           onNewSession={handleNewSession}
           onSelectSession={handleSelectSession}
           onClose={() => setIsSidebarOpen(false)}
@@ -83,6 +138,19 @@ export default function Home() {
           />
         </svg>
       </button>
+
+      {/* Prompt Panel — between sidebar and main content */}
+      {promptPanelOpen && (
+        <div className="hidden w-96 flex-shrink-0 border-r border-gray-800 md:block">
+          <PromptPanel
+            prompt={selectedPrompt}
+            mode={promptPanelMode}
+            onModeChange={setPromptPanelMode}
+            onClose={handlePromptPanelClose}
+            onSaved={handlePromptSaved}
+          />
+        </div>
+      )}
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -118,6 +186,7 @@ export default function Home() {
             <ChatWindow
               sessionId={activeSessionId}
               onSessionCreated={handleSessionCreated}
+              prompts={prompts}
             />
           ) : (
             <ReflectionsView />
