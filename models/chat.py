@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     text,
     CheckConstraint,
+    PrimaryKeyConstraint,
 )
 
 from database import Base
@@ -43,4 +44,22 @@ class Message(Base):
     )
     __table_args__ = (
         CheckConstraint("role IN ('user', 'assistant')", name="ck__message__role"),
+    )
+
+
+class MessageContext(Base):
+    __tablename__ = "message_context"
+
+    message_id = Column(
+        UUID, ForeignKey("message.id", ondelete="CASCADE"), nullable=False
+    )
+    context_type = Column(String(30), nullable=False)
+    context_id = Column(UUID, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "context_type IN ('reflection')",
+            name="ck__message_context__context_type",
+        ),
+        PrimaryKeyConstraint("message_id", "context_type", "context_id"),
     )
