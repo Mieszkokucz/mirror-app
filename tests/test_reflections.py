@@ -136,3 +136,140 @@ def test_delete_reflection_not_found(client):
     # delete non existing reflection
     response = client.delete(f"/reflections/{uuid.uuid4()}")
     assert response.status_code == 404
+
+
+def test_export_reflections(client, test_user):
+    client.post(
+        "/reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "morning",
+            "content": "morning thoughts",
+            "date": "2026-03-17",
+        },
+    )
+    client.post(
+        "/reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "evening",
+            "content": "evening thoughts",
+            "date": "2026-03-17",
+        },
+    )
+
+    response = client.get(
+        "/reflections/export", params={"user_id": str(test_user.id)}
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
+    assert "filename=reflections_export.txt" in response.headers["content-disposition"]
+
+    text = response.text
+    assert "morning thoughts" in text
+    assert "evening thoughts" in text
+    assert "Date: 2026-03-17" in text
+    assert "Type: morning" in text
+    assert "Type: evening" in text
+
+
+def test_export_reflections_with_date_from(client, test_user):
+    client.post(
+        "/reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "morning",
+            "content": "old thoughts",
+            "date": "2026-03-10",
+        },
+    )
+    client.post(
+        "/reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "morning",
+            "content": "recent thoughts",
+            "date": "2026-03-20",
+        },
+    )
+
+    response = client.get(
+        "/reflections/export",
+        params={"user_id": str(test_user.id), "date_from": "2026-03-15"},
+    )
+
+    assert response.status_code == 200
+    assert "filename=reflections_export_from_2026-03-15.txt" in response.headers["content-disposition"]
+    assert "recent thoughts" in response.text
+    assert "old thoughts" not in response.text
+
+
+def test_export_reflections_with_date_to(client, test_user):
+    client.post(
+        "/reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "morning",
+            "content": "old thoughts",
+            "date": "2026-03-10",
+        },
+    )
+    client.post(
+        "/reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "morning",
+            "content": "recent thoughts",
+            "date": "2026-03-20",
+        },
+    )
+
+    response = client.get(
+        "/reflections/export",
+        params={"user_id": str(test_user.id), "date_to": "2026-03-15"},
+    )
+
+    assert response.status_code == 200
+    assert "filename=reflections_export_to_2026-03-15.txt" in response.headers["content-disposition"]
+    assert "old thoughts" in response.text
+    assert "recent thoughts" not in response.text
+
+
+def test_export_reflections_with_date_range(client, test_user):
+    for date, content in [
+        ("2026-03-05", "too early"),
+        ("2026-03-15", "in range"),
+        ("2026-03-25", "too late"),
+    ]:
+        client.post(
+            "/reflections/",
+            json={
+                "user_id": str(test_user.id),
+                "reflection_type": "morning",
+                "content": content,
+                "date": date,
+            },
+        )
+
+    response = client.get(
+        "/reflections/export",
+        params={
+            "user_id": str(test_user.id),
+            "date_from": "2026-03-10",
+            "date_to": "2026-03-20",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "filename=reflections_export_2026-03-10_to_2026-03-20.txt" in response.headers["content-disposition"]
+    assert "in range" in response.text
+    assert "too early" not in response.text
+    assert "too late" not in response.text
+
+
+def test_export_reflections_empty(client, test_user):
+    response = client.get(
+        "/reflections/export", params={"user_id": str(test_user.id)}
+    )
+    assert response.status_code == 404

@@ -184,6 +184,30 @@ export async function deleteSystemPrompt(id: string): Promise<void> {
   }
 }
 
+export async function exportReflections(userId: string, dateFrom?: string, dateTo?: string): Promise<void> {
+  const params = new URLSearchParams({ user_id: userId });
+  if (dateFrom) params.set("date_from", dateFrom);
+  if (dateTo) params.set("date_to", dateTo);
+
+  const res = await fetch(`${API_BASE_URL}/reflections/export?${params}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const filenameMatch = disposition.match(/filename=(.+)/);
+  const filename = filenameMatch ? filenameMatch[1] : "reflections_export.txt";
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function fetchReflections(userId: string): Promise<ReflectionResponse[]> {
   const res = await fetch(`${API_BASE_URL}/reflections/?user_id=${userId}`);
   if (!res.ok) {

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import PlainTextResponse
 from database import get_db
 from sqlalchemy.orm import Session
 from models.reflections import DailyReflection
@@ -12,6 +13,50 @@ from datetime import date as DateType
 from typing import Optional
 
 router = APIRouter()
+
+
+@router.get("/reflections/export")
+def export_reflections(
+    user_id: uuid.UUID,
+    date_from: Optional[DateType] = None,
+    date_to: Optional[DateType] = None,
+    db: Session = Depends(get_db),
+):
+    query = (
+        db.query(DailyReflection)
+        .filter(DailyReflection.user_id == user_id)
+    )
+    if date_from:
+        query = query.filter(DailyReflection.date >= date_from)
+    if date_to:
+        query = query.filter(DailyReflection.date <= date_to)
+    reflections = (
+        query.order_by(DailyReflection.date, DailyReflection.reflection_type).all()
+    )
+
+    if not reflections:
+        raise HTTPException(status_code=404, detail="No reflections found for this user")
+
+    lines = []
+    for r in reflections:
+        lines.append(f"Date: {r.date}")
+        lines.append(f"Type: {r.reflection_type}")
+        lines.append(f"Content:\n{r.content}")
+        lines.append("-" * 40)
+
+    suffix = ""
+    if date_from and date_to:
+        suffix = f"_{date_from}_to_{date_to}"
+    elif date_from:
+        suffix = f"_from_{date_from}"
+    elif date_to:
+        suffix = f"_to_{date_to}"
+    filename = f"reflections_export{suffix}.txt"
+
+    return PlainTextResponse(
+        content="\n".join(lines),
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.post("/reflections/")

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchReflections, createReflection, updateReflection, deleteReflection, ReflectionResponse } from "@/lib/api";
+import { fetchReflections, createReflection, updateReflection, deleteReflection, exportReflections, ReflectionResponse } from "@/lib/api";
 import { USER_ID } from "@/lib/constants";
 import Calendar from "./Calendar";
 
@@ -40,6 +40,24 @@ export default function ReflectionsView() {
   const [editType, setEditType] = useState("morning");
   const [editDate, setEditDate] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+
+  async function handleExport(dateFrom?: string, dateTo?: string) {
+    setIsExporting(true);
+    try {
+      await exportReflections(USER_ID, dateFrom || undefined, dateTo || undefined);
+      setShowExportMenu(false);
+      setExportFrom("");
+      setExportTo("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to export reflections");
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   function loadReflections() {
     fetchReflections(USER_ID)
@@ -178,12 +196,62 @@ export default function ReflectionsView() {
 
             {/* Right: Entries */}
             <div className="min-w-0 flex-1">
-              <button
-                onClick={() => setShowForm(true)}
-                className="mb-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition"
-              >
-                + New Reflection
-              </button>
+              <div className="relative mb-4 flex gap-2">
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition"
+                >
+                  + New Reflection
+                </button>
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 transition"
+                >
+                  Export
+                </button>
+
+                {showExportMenu && (
+                  <div className="absolute top-full left-0 z-50 mt-2 rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-3 w-80">
+                    <button
+                      onClick={() => handleExport()}
+                      disabled={isExporting}
+                      className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition disabled:opacity-50"
+                    >
+                      {isExporting ? "Exporting..." : "Export All"}
+                    </button>
+                    <div className="border-t border-gray-800 pt-3">
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">Date Range</p>
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="mb-1 block text-xs text-gray-500">From</label>
+                          <input
+                            type="date"
+                            value={exportFrom}
+                            onChange={(e) => setExportFrom(e.target.value)}
+                            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="mb-1 block text-xs text-gray-500">To</label>
+                          <input
+                            type="date"
+                            value={exportTo}
+                            onChange={(e) => setExportTo(e.target.value)}
+                            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleExport(exportFrom, exportTo)}
+                        disabled={isExporting || (!exportFrom && !exportTo)}
+                        className="mt-2 w-full rounded-lg border border-blue-600 px-4 py-2 text-sm font-medium text-blue-400 hover:bg-blue-600/10 transition disabled:opacity-50"
+                      >
+                        {isExporting ? "Exporting..." : "Export Range"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {showForm && (
                 <div className="mb-4 rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-3">
