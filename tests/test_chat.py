@@ -2,6 +2,7 @@ from models.chat import Session
 from models.chat import Message
 import uuid
 from unittest.mock import patch
+from typing import List
 
 
 def test_get_sessions_list(client, db_session, test_user):
@@ -127,3 +128,22 @@ def test_create_chat_existing_session(mock_llm, client, db_session, test_user):
     assert response.json()["session_id"] == str(session.id)
     assert response.json()["response"] == "mocked response"
     mock_llm.assert_called_once()
+
+
+@patch("services.conversation.send_to_anthropic", return_value="mocked response")
+def test_create_chat_with_context_reflections(
+    mock_llm, client, test_user, test_reflection
+):
+    response = client.post(
+        "/chat/",
+        json={
+            "message": "hi",
+            "user_id": str(test_user.id),
+            "context_reflection_ids": [str(test_reflection.id)],
+        },
+    )
+
+    assert response.status_code == 200
+    call_kwargs = mock_llm.call_args
+    assert "[Reflection: morning, 2026-03-19]" in call_kwargs[1]["system_prompt"]
+    assert "test" in call_kwargs[1]["system_prompt"]

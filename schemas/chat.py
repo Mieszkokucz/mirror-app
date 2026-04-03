@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 import uuid
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 from datetime import datetime
 
 
@@ -12,6 +12,7 @@ class ChatRequest(BaseModel):
     model: Literal["claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"] = (
         "claude-haiku-4-5-20251001"
     )
+    context_reflection_ids: Optional[List[uuid.UUID]] = None
 
 
 class ChatResponse(BaseModel):

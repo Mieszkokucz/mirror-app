@@ -46,6 +46,37 @@ def test_get_reflections_list(client, test_user):
     assert response.json()[1]["content"] == "testcontent2"
 
 
+def test_get_reflections_list_by_date(client, test_user):
+    # post reflections
+    client.post(
+        "/reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "morning",
+            "content": "testcontent",
+            "date": "2026-03-17",
+        },
+    )
+    client.post(
+        "/reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "evening",
+            "content": "testcontent2",
+            "date": "2026-03-18",
+        },
+    )
+
+    response = client.get(
+        "/reflections/", params={"user_id": str(test_user.id), "date": "2026-03-18"}
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["reflection_type"] == "evening"
+    assert response.json()[0]["content"] == "testcontent2"
+
+
 def test_get_reflections_empty(client, test_user):
     response = client.get("/reflections/", params={"user_id": str(test_user.id)})
 

@@ -8,6 +8,8 @@ from schemas.reflections import (
     DailyReflectionUpdate,
 )
 import uuid
+from datetime import date as DateType
+from typing import Optional
 
 router = APIRouter()
 
@@ -31,8 +33,13 @@ def create_daily_reflection(
 
 
 @router.get("/reflections/", response_model=list[DailyReflectionResponse])
-def read_daily_reflection(user_id: uuid.UUID, db: Session = Depends(get_db)):
-    return db.query(DailyReflection).filter(DailyReflection.user_id == user_id).all()
+def read_daily_reflection(
+    user_id: uuid.UUID, date: Optional[DateType] = None, db: Session = Depends(get_db)
+):
+    query = db.query(DailyReflection).filter(DailyReflection.user_id == user_id)
+    if date:
+        query = query.filter(DailyReflection.date == date)
+    return query.all()
 
 
 @router.get("/reflections/{reflection_id}", response_model=DailyReflectionResponse)
