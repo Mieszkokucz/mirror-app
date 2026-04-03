@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { SessionResponse, SystemPromptResponse } from "@/lib/api";
+import { SessionResponse, SystemPromptResponse, ReflectionResponse } from "@/lib/api";
+import { groupReflectionsByDate } from "@/lib/utils";
 
 interface SidebarProps {
   activeSessionId: string | null;
@@ -15,6 +16,9 @@ interface SidebarProps {
   onNewSession: () => void;
   onSelectSession: (sessionId: string) => void;
   onClose: () => void;
+  reflections: ReflectionResponse[];
+  onAttachByDate: (date: string) => void;
+  onSetPromptForChat: (promptId: string) => void;
 }
 
 function groupSessionsByDate(sessions: SessionResponse[]): Map<string, SessionResponse[]> {
@@ -67,9 +71,14 @@ export default function Sidebar({
   onNewSession,
   onSelectSession,
   onClose,
+  reflections,
+  onAttachByDate,
+  onSetPromptForChat,
 }: SidebarProps) {
   const grouped = groupSessionsByDate(sessions);
   const [promptsExpanded, setPromptsExpanded] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const dateGroups = groupReflectionsByDate(reflections);
 
   const builtInPrompts = prompts.filter((p) => p.user_id === null);
   const customPrompts = prompts.filter((p) => p.user_id !== null);
@@ -123,20 +132,32 @@ export default function Sidebar({
           <div className="mt-1 space-y-0.5">
             {/* Built-in prompts */}
             {builtInPrompts.map((prompt) => (
-              <button
+              <div
                 key={prompt.id}
-                onClick={() => onSelectPrompt(prompt.id)}
-                className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-sm transition ${
+                className={`group flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-sm transition cursor-pointer ${
                   selectedPromptId === prompt.id
                     ? "bg-gray-800/80 text-gray-100"
                     : "text-gray-400 hover:bg-gray-900 hover:text-gray-200"
                 }`}
+                onClick={() => onSelectPrompt(prompt.id)}
               >
                 <span className="truncate">{prompt.display_name}</span>
-                <span className="ml-1 flex-shrink-0 rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-500">
-                  Built-in
-                </span>
-              </button>
+                <div className="flex flex-shrink-0 items-center gap-1">
+                  <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-500">
+                    Built-in
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onSetPromptForChat(prompt.id); }}
+                    className="rounded p-1 text-gray-500 opacity-0 transition hover:bg-gray-800 hover:text-gray-300 group-hover:opacity-100"
+                    aria-label="Use prompt in chat"
+                    title="Use in chat"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-3 w-3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             ))}
 
             {/* Custom prompts */}
@@ -155,6 +176,16 @@ export default function Sidebar({
                   className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <button
+                    onClick={() => onSetPromptForChat(prompt.id)}
+                    className="rounded p-1 text-gray-500 hover:bg-gray-800 hover:text-gray-300"
+                    aria-label="Use prompt in chat"
+                    title="Use in chat"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-3 w-3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                  </button>
                   <button
                     onClick={() => onEditPrompt(prompt.id)}
                     className="rounded p-1 text-gray-500 hover:bg-gray-800 hover:text-gray-300"
@@ -184,6 +215,58 @@ export default function Sidebar({
             >
               + Add Prompt
             </button>
+          </div>
+        )}
+      </div>
+
+      {/* Notes (Reflections) section */}
+      <div className="flex-shrink-0 border-b border-gray-800 px-3 pb-3">
+        <button
+          onClick={() => setNotesExpanded(!notesExpanded)}
+          className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium text-gray-500 transition hover:text-gray-300"
+        >
+          <span>Notes ({dateGroups.length} days)</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            className={`h-3 w-3 transition-transform ${notesExpanded ? "rotate-90" : ""}`}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
+
+        {notesExpanded && (
+          <div className="mt-1 space-y-0.5">
+            {dateGroups.length === 0 ? (
+              <p className="px-2 py-1.5 text-xs text-gray-600">No reflections yet.</p>
+            ) : (
+              dateGroups.map((group) => (
+                <div
+                  key={group.date}
+                  className="group flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-gray-400 hover:bg-gray-900 hover:text-gray-200"
+                >
+                  <div className="min-w-0">
+                    <span className="truncate">{group.label}</span>
+                    <span className="ml-1.5 text-xs text-gray-600">
+                      {group.reflections.length} reflection{group.reflections.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => onAttachByDate(group.date)}
+                    className="flex-shrink-0 rounded p-1 text-gray-500 opacity-0 transition hover:bg-gray-800 hover:text-gray-300 group-hover:opacity-100"
+                    aria-label={`Attach ${group.label} reflections`}
+                    title="Attach to chat"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-3 w-3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         )}
       </div>

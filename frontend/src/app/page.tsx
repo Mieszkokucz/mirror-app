@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SessionResponse, SystemPromptResponse, fetchSessions, fetchSystemPrompts } from "@/lib/api";
-import { USER_ID } from "@/lib/constants";
+import { SessionResponse, SystemPromptResponse, ReflectionResponse, fetchSessions, fetchSystemPrompts, fetchReflections } from "@/lib/api";
+import { USER_ID, FREE_CHAT_ID } from "@/lib/constants";
 import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
 import ReflectionsView from "@/components/ReflectionsView";
@@ -16,6 +16,11 @@ export default function Home() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionResponse[]>([]);
   const [prompts, setPrompts] = useState<SystemPromptResponse[]>([]);
+  const [reflections, setReflections] = useState<ReflectionResponse[]>([]);
+
+  // Chat attachment state (lifted from ChatWindow for sidebar access)
+  const [chatPromptValue, setChatPromptValue] = useState(FREE_CHAT_ID);
+  const [attachedReflectionIds, setAttachedReflectionIds] = useState<string[]>([]);
 
   // Prompt panel state
   const [promptPanelOpen, setPromptPanelOpen] = useState(false);
@@ -26,13 +31,36 @@ export default function Home() {
     fetchSystemPrompts(USER_ID).then(setPrompts).catch(() => {});
   }
 
+  function reloadReflections() {
+    fetchReflections(USER_ID).then(setReflections).catch(() => {});
+  }
+
   useEffect(() => {
     fetchSessions(USER_ID).then(setSessions).catch(() => {});
     reloadPrompts();
+    reloadReflections();
   }, []);
+
+  // Auto-attach today's reflections when evening/midday prompt is selected
+  const AUTO_ATTACH_PROMPTS = ["evening_reflection", "midday_reflection"];
+  useEffect(() => {
+    if (chatPromptValue === FREE_CHAT_ID) return;
+    const prompt = prompts.find((p) => p.id === chatPromptValue);
+    if (prompt && AUTO_ATTACH_PROMPTS.includes(prompt.name)) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayIds = reflections
+        .filter((r) => r.date === todayStr)
+        .map((r) => r.id);
+      if (todayIds.length > 0) {
+        setAttachedReflectionIds((prev) => [...new Set([...prev, ...todayIds])]);
+      }
+    }
+  }, [chatPromptValue]);
 
   function handleNewSession() {
     setActiveSessionId(null);
+    setChatPromptValue(FREE_CHAT_ID);
+    setAttachedReflectionIds([]);
     setActiveView("chat");
     setIsSidebarOpen(false);
   }
@@ -45,6 +73,31 @@ export default function Home() {
   function handleSessionCreated(sessionId: string) {
     setActiveSessionId(sessionId);
     fetchSessions(USER_ID).then(setSessions).catch(() => {});
+  }
+
+  function handleAttachByDate(date: string) {
+    const ids = reflections
+      .filter((r) => r.date === date)
+      .map((r) => r.id);
+    setAttachedReflectionIds((prev) => [...new Set([...prev, ...ids])]);
+  }
+
+  function handleRemoveAttachmentsByDate(date: string) {
+    const idsToRemove = new Set(
+      reflections.filter((r) => r.date === date).map((r) => r.id)
+    );
+    setAttachedReflectionIds((prev) => prev.filter((id) => !idsToRemove.has(id)));
+  }
+
+  function handleClearAttachments() {
+    setAttachedReflectionIds([]);
+  }
+
+  function handleSetActiveView(view: ActiveView) {
+    setActiveView(view);
+    if (view === "chat") {
+      reloadReflections();
+    }
   }
 
   // Prompt panel handlers
@@ -112,6 +165,9 @@ export default function Home() {
           onNewSession={handleNewSession}
           onSelectSession={handleSelectSession}
           onClose={() => setIsSidebarOpen(false)}
+          reflections={reflections}
+          onAttachByDate={handleAttachByDate}
+          onSetPromptForChat={setChatPromptValue}
         />
       </div>
 
@@ -158,7 +214,7 @@ export default function Home() {
         <div className="flex flex-shrink-0 items-center gap-3 border-b border-gray-800 bg-gray-950 px-4 py-4 pl-12">
           <div className="ml-auto flex gap-1">
             <button
-              onClick={() => setActiveView("chat")}
+              onClick={() => handleSetActiveView("chat")}
               className={`rounded-lg px-3 py-1.5 text-sm transition ${
                 activeView === "chat"
                   ? "bg-gray-800 text-gray-100"
@@ -168,7 +224,7 @@ export default function Home() {
               Chat
             </button>
             <button
-              onClick={() => setActiveView("reflections")}
+              onClick={() => handleSetActiveView("reflections")}
               className={`rounded-lg px-3 py-1.5 text-sm transition ${
                 activeView === "reflections"
                   ? "bg-gray-800 text-gray-100"
@@ -187,6 +243,13 @@ export default function Home() {
               sessionId={activeSessionId}
               onSessionCreated={handleSessionCreated}
               prompts={prompts}
+              reflections={reflections}
+              promptValue={chatPromptValue}
+              onPromptChange={setChatPromptValue}
+              attachedReflectionIds={attachedReflectionIds}
+              onAttachByDate={handleAttachByDate}
+              onRemoveAttachmentsByDate={handleRemoveAttachmentsByDate}
+              onClearAttachments={handleClearAttachments}
             />
           ) : (
             <ReflectionsView />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sendChatMessage, fetchSessionMessages, SystemPromptResponse } from "@/lib/api";
+import { sendChatMessage, fetchSessionMessages, SystemPromptResponse, ReflectionResponse } from "@/lib/api";
 import { MODELS, DEFAULT_MODEL, FREE_CHAT_ID, FREE_CHAT_META, USER_ID } from "@/lib/constants";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
@@ -20,22 +20,38 @@ interface ChatWindowProps {
   sessionId: string | null;
   onSessionCreated: (sessionId: string) => void;
   prompts: SystemPromptResponse[];
+  reflections: ReflectionResponse[];
+  promptValue: string;
+  onPromptChange: (value: string) => void;
+  attachedReflectionIds: string[];
+  onAttachByDate: (date: string) => void;
+  onRemoveAttachmentsByDate: (date: string) => void;
+  onClearAttachments: () => void;
 }
 
 export default function ChatWindow({
   sessionId,
   onSessionCreated,
   prompts: dbPrompts,
+  reflections,
+  promptValue,
+  onPromptChange,
+  attachedReflectionIds,
+  onAttachByDate,
+  onRemoveAttachmentsByDate,
+  onClearAttachments,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [model, setModel] = useState(DEFAULT_MODEL);
-  const [promptValue, setPromptValue] = useState(FREE_CHAT_ID);
   const prompts: readonly PromptOption[] = [
     { value: FREE_CHAT_ID, label: FREE_CHAT_META.label },
     ...dbPrompts.map((p) => ({ value: p.id, label: p.display_name })),
   ];
+  const attachedReflections = reflections.filter((r) =>
+    attachedReflectionIds.includes(r.id)
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScroll = useRef(true);
@@ -92,7 +108,9 @@ export default function ChatWindow({
         prompt_id: promptValue === FREE_CHAT_ID ? undefined : promptValue,
         model,
         user_id: USER_ID,
+        context_reflection_ids: attachedReflectionIds.length > 0 ? attachedReflectionIds : undefined,
       });
+      onClearAttachments();
 
       setMessages((prev) => [
         ...prev,
@@ -168,8 +186,12 @@ export default function ChatWindow({
           onModelChange={setModel}
           prompts={prompts}
           selectedPrompt={promptValue}
-          onPromptChange={setPromptValue}
-          showPromptSelector={true}
+          onPromptChange={onPromptChange}
+
+          attachedReflections={attachedReflections}
+          onRemoveAttachmentsByDate={onRemoveAttachmentsByDate}
+          allReflections={reflections}
+          onAttachByDate={onAttachByDate}
         />
       </div>
     </div>

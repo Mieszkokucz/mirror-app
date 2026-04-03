@@ -13,7 +13,7 @@ function formatDate(dateStr: string): string {
 function typeLabel(reflectionType: string): string {
   switch (reflectionType) {
     case "morning": return "Morning";
-    case "afternoon": return "Afternoon";
+    case "midday": return "Midday";
     case "evening": return "Evening";
     default: return reflectionType;
   }
@@ -205,7 +205,7 @@ export default function ReflectionsView() {
                         className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200"
                       >
                         <option value="morning">Morning</option>
-                        <option value="afternoon">Afternoon</option>
+                        <option value="midday">Midday</option>
                         <option value="evening">Evening</option>
                       </select>
                     </div>
@@ -276,7 +276,7 @@ export default function ReflectionsView() {
                                       className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200"
                                     >
                                       <option value="morning">Morning</option>
-                                      <option value="afternoon">Afternoon</option>
+                                      <option value="midday">Midday</option>
                                       <option value="evening">Evening</option>
                                     </select>
                                   </div>
