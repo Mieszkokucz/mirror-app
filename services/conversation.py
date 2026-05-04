@@ -1,3 +1,5 @@
+import os
+
 from fastapi import HTTPException
 from models.chat import Session as ChatSession, Message, MessageContext
 from models.system_prompts import SystemPrompt
@@ -5,6 +7,13 @@ from models.reflections import DailyReflection
 from models.files import File
 from services.llm_gateway import send_to_anthropic
 from services.files import upload_message_attachment
+
+_TEXT_EXTENSIONS = {".txt", ".md", ".markdown"}
+
+
+def _is_text_file(filename: str, mime_type: str) -> bool:
+    ext = os.path.splitext(filename or "")[1].lower()
+    return (mime_type or "").startswith("text/") or ext in _TEXT_EXTENSIONS
 
 
 async def handle_chat(
@@ -49,13 +58,14 @@ async def handle_chat(
 
         system_prompt += "\n\n---\nThe user has attached the following files:\n\n"
         for f in file_list:
-            if not f.mime_type.startswith("text/"):
+            if not _is_text_file(f.filename, f.mime_type):
                 raise HTTPException(
                     status_code=422,
                     detail=f"File '{f.filename}' has unsupported type '{f.mime_type}'. Only text files are supported."
                 )
             try:
-                content = open(f.storage_path, encoding="utf-8").read()
+                with open(f.storage_path, encoding="utf-8") as fh:
+                    content = fh.read()
             except OSError:
                 raise HTTPException(
                     status_code=500, detail=f"File '{f.filename}' could not be read from disk"
@@ -65,7 +75,7 @@ async def handle_chat(
     # append directly uploaded files inline to the user message
     if files:
         for f in files:
-            if not (f.content_type or "").startswith("text/"):
+            if not _is_text_file(f.filename, f.content_type or ""):
                 raise HTTPException(
                     status_code=422,
                     detail=f"File '{f.filename}' has unsupported type '{f.content_type}'. Only text files are supported."
@@ -112,6 +122,49 @@ async def handle_chat(
         .order_by(Message.created_at)
         .all()
     )
+
+    message_ids = [msg.id for msg in session_hist]
+    past_contexts = (
+        db.query(MessageContext)
+        .filter(MessageContext.message_id.in_(message_ids))
+        .all()
+    )
+    already_reflection_ids = set(context_reflection_ids or [])
+    already_file_ids = set(context_file_ids or [])
+    historic_reflection_ids = {
+        ctx.context_id for ctx in past_contexts
+        if ctx.context_type == "reflection" and ctx.context_id not in already_reflection_ids
+    }
+    historic_file_ids = {
+        ctx.context_id for ctx in past_contexts
+        if ctx.context_type == "file" and ctx.context_id not in already_file_ids
+    }
+    if historic_reflection_ids:
+        historic_reflections = (
+            db.query(DailyReflection)
+            .filter(DailyReflection.id.in_(historic_reflection_ids))
+            .all()
+        )
+        system_prompt += "\n\n---\nPreviously attached reflections (from earlier in this conversation):\n\n"
+        for r in historic_reflections:
+            system_prompt += f"[Reflection: {r.reflection_type}, {r.date}]\n{r.content}\n\n"
+    if historic_file_ids:
+        historic_files = db.query(File).filter(File.id.in_(historic_file_ids)).all()
+        system_prompt += "\n\n---\nPreviously attached files (from earlier in this conversation):\n\n"
+        for f in historic_files:
+            if not _is_text_file(f.filename, f.mime_type):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"File '{f.filename}' has unsupported type '{f.mime_type}'. Only text files are supported."
+                )
+            try:
+                with open(f.storage_path, encoding="utf-8") as fh:
+                    content = fh.read()
+            except OSError:
+                raise HTTPException(
+                    status_code=500, detail=f"File '{f.filename}' could not be read from disk"
+                )
+            system_prompt += f"[File: {f.filename}]\n{content}\n\n"
 
     message_to_llm = list(
         {"role": msg.role, "content": msg.content} for msg in session_hist
