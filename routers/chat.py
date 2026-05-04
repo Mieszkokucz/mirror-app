@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Form, File, UploadFile
+from typing import Optional, List
 from database import get_db
 from sqlalchemy.orm import Session
 import uuid
 
-
-from schemas.chat import ChatRequest, ChatResponse, SessionResponse, MessageResponse
+from schemas.chat import ChatResponse, SessionResponse, MessageResponse
 from models.chat import Session as ChatSession, Message
 from services.conversation import handle_chat
 
@@ -13,15 +13,27 @@ router = APIRouter()
 
 
 @router.post("/chat/", response_model=ChatResponse)
-def create_chat(chat: ChatRequest, db: Session = Depends(get_db)):
-    result = handle_chat(
+async def create_chat(
+    message: str = Form(...),
+    user_id: uuid.UUID = Form(...),
+    session_id: Optional[uuid.UUID] = Form(None),
+    prompt_id: Optional[uuid.UUID] = Form(None),
+    model: str = Form("claude-haiku-4-5-20251001"),
+    context_reflection_ids: Optional[List[uuid.UUID]] = Form(None),
+    context_file_ids: Optional[List[uuid.UUID]] = Form(None),
+    files: List[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+):
+    result = await handle_chat(
         db,
-        chat.user_id,
-        chat.message,
-        chat.session_id,
-        chat.prompt_id,
-        chat.model,
-        chat.context_reflection_ids,
+        user_id,
+        message,
+        session_id,
+        prompt_id,
+        model,
+        context_reflection_ids,
+        context_file_ids,
+        files,
     )
     return result
 

@@ -60,7 +60,7 @@ def test_get_session_messages_empty(client):
 @patch("services.conversation.send_to_anthropic", return_value="mocked response")
 def test_create_chat_new_session(mock_llm, client, test_user):
     response = client.post(
-        "/chat/", json={"message": "hi", "user_id": str(test_user.id)}
+        "/chat/", data={"message": "hi", "user_id": str(test_user.id)}
     )
     assert response.status_code == 200
     assert "session_id" in response.json()
@@ -83,7 +83,7 @@ def test_create_chat_with_prompt_id(mock_llm, client, db_session, test_user):
 
     response = client.post(
         "/chat/",
-        json={
+        data={
             "message": "hi",
             "user_id": str(test_user.id),
             "prompt_id": str(prompt.id),
@@ -98,7 +98,7 @@ def test_create_chat_with_prompt_id(mock_llm, client, db_session, test_user):
 def test_create_chat_with_invalid_prompt_id(mock_llm, client, test_user):
     response = client.post(
         "/chat/",
-        json={
+        data={
             "message": "hi",
             "user_id": str(test_user.id),
             "prompt_id": str(uuid.uuid4()),
@@ -117,7 +117,7 @@ def test_create_chat_existing_session(mock_llm, client, db_session, test_user):
 
     response = client.post(
         "/chat/",
-        json={
+        data={
             "message": "hi",
             "user_id": str(test_user.id),
             "session_id": str(session.id),
@@ -136,10 +136,10 @@ def test_create_chat_with_context_reflections(
 ):
     response = client.post(
         "/chat/",
-        json={
+        data={
             "message": "hi",
             "user_id": str(test_user.id),
-            "context_reflection_ids": [str(test_reflection.id)],
+            "context_reflection_ids": str(test_reflection.id),
         },
     )
 
