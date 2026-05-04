@@ -30,6 +30,7 @@ from database import Base
 import models.reflections
 import models.chat
 import models.system_prompts
+import models.files
 
 target_metadata = Base.metadata
 
