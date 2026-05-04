@@ -11,6 +11,6 @@ client = anthropic.Anthropic(api_key=api_key)
 
 def send_to_anthropic(messages, system_prompt, model):
     resp = client.messages.create(
-        model=model, max_tokens=1024, messages=messages, system=system_prompt
+        model=model, max_tokens=5000, messages=messages, system=system_prompt
     )
     return resp.content[0].text
