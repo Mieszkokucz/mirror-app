@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SessionResponse, SystemPromptResponse, ReflectionResponse, fetchSessions, fetchSystemPrompts, fetchReflections } from "@/lib/api";
+import { SessionResponse, SystemPromptResponse, ReflectionResponse, FileResponse, fetchSessions, fetchSystemPrompts, fetchReflections, fetchLibraryFiles } from "@/lib/api";
 import { USER_ID, FREE_CHAT_ID } from "@/lib/constants";
 import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
 import ReflectionsView from "@/components/ReflectionsView";
+import LibraryView from "@/components/LibraryView";
 import PromptPanel, { PromptPanelMode } from "@/components/PromptPanel";
 
-type ActiveView = "chat" | "reflections";
+type ActiveView = "chat" | "reflections" | "library";
 
 export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -17,10 +18,12 @@ export default function Home() {
   const [sessions, setSessions] = useState<SessionResponse[]>([]);
   const [prompts, setPrompts] = useState<SystemPromptResponse[]>([]);
   const [reflections, setReflections] = useState<ReflectionResponse[]>([]);
+  const [libraryFiles, setLibraryFiles] = useState<FileResponse[]>([]);
 
   // Chat attachment state (lifted from ChatWindow for sidebar access)
   const [chatPromptValue, setChatPromptValue] = useState(FREE_CHAT_ID);
   const [attachedReflectionIds, setAttachedReflectionIds] = useState<string[]>([]);
+  const [attachedFileIds, setAttachedFileIds] = useState<string[]>([]);
 
   // Prompt panel state
   const [promptPanelOpen, setPromptPanelOpen] = useState(false);
@@ -35,10 +38,15 @@ export default function Home() {
     fetchReflections(USER_ID).then(setReflections).catch(() => {});
   }
 
+  function reloadLibrary() {
+    fetchLibraryFiles(USER_ID).then(setLibraryFiles).catch(() => {});
+  }
+
   useEffect(() => {
     fetchSessions(USER_ID).then(setSessions).catch(() => {});
     reloadPrompts();
     reloadReflections();
+    reloadLibrary();
   }, []);
 
   // Auto-attach today's reflections when evening/midday prompt is selected
@@ -61,6 +69,7 @@ export default function Home() {
     setActiveSessionId(null);
     setChatPromptValue(FREE_CHAT_ID);
     setAttachedReflectionIds([]);
+    setAttachedFileIds([]);
     setActiveView("chat");
     setIsSidebarOpen(false);
   }
@@ -91,12 +100,22 @@ export default function Home() {
 
   function handleClearAttachments() {
     setAttachedReflectionIds([]);
+    setAttachedFileIds([]);
+  }
+
+  function handleToggleFileId(id: string) {
+    setAttachedFileIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   }
 
   function handleSetActiveView(view: ActiveView) {
     setActiveView(view);
     if (view === "chat") {
       reloadReflections();
+    }
+    if (view === "library") {
+      reloadLibrary();
     }
   }
 
@@ -233,6 +252,16 @@ export default function Home() {
             >
               Reflections
             </button>
+            <button
+              onClick={() => handleSetActiveView("library")}
+              className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                activeView === "library"
+                  ? "bg-gray-800 text-gray-100"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Library
+            </button>
           </div>
         </div>
 
@@ -250,9 +279,14 @@ export default function Home() {
               onAttachByDate={handleAttachByDate}
               onRemoveAttachmentsByDate={handleRemoveAttachmentsByDate}
               onClearAttachments={handleClearAttachments}
+              libraryFiles={libraryFiles}
+              attachedFileIds={attachedFileIds}
+              onToggleFileId={handleToggleFileId}
             />
-          ) : (
+          ) : activeView === "reflections" ? (
             <ReflectionsView />
+          ) : (
+            <LibraryView files={libraryFiles} onFilesChange={reloadLibrary} />
           )}
         </div>
       </div>

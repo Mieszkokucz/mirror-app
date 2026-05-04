@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sendChatMessage, fetchSessionMessages, SystemPromptResponse, ReflectionResponse } from "@/lib/api";
+import { sendChatMessage, fetchSessionMessages, SystemPromptResponse, ReflectionResponse, FileResponse } from "@/lib/api";
 import { MODELS, DEFAULT_MODEL, FREE_CHAT_ID, FREE_CHAT_META, USER_ID } from "@/lib/constants";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
@@ -27,6 +27,9 @@ interface ChatWindowProps {
   onAttachByDate: (date: string) => void;
   onRemoveAttachmentsByDate: (date: string) => void;
   onClearAttachments: () => void;
+  libraryFiles: FileResponse[];
+  attachedFileIds: string[];
+  onToggleFileId: (id: string) => void;
 }
 
 export default function ChatWindow({
@@ -40,6 +43,9 @@ export default function ChatWindow({
   onAttachByDate,
   onRemoveAttachmentsByDate,
   onClearAttachments,
+  libraryFiles,
+  attachedFileIds,
+  onToggleFileId,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +63,6 @@ export default function ChatWindow({
   const shouldAutoScroll = useRef(true);
   const justCreatedSessionRef = useRef(false);
 
-  // Load messages when session changes
   useEffect(() => {
     if (justCreatedSessionRef.current) {
       justCreatedSessionRef.current = false;
@@ -95,7 +100,7 @@ export default function ChatWindow({
     }
   }, [messages, isLoading]);
 
-  async function handleSend(message: string) {
+  async function handleSend(message: string, files: File[]) {
     setError(null);
     setMessages((prev) => [...prev, { role: "user", content: message }]);
     setIsLoading(true);
@@ -109,6 +114,8 @@ export default function ChatWindow({
         model,
         user_id: USER_ID,
         context_reflection_ids: attachedReflectionIds.length > 0 ? attachedReflectionIds : undefined,
+        context_file_ids: attachedFileIds.length > 0 ? attachedFileIds : undefined,
+        files: files.length > 0 ? files : undefined,
       });
       onClearAttachments();
 
@@ -187,11 +194,13 @@ export default function ChatWindow({
           prompts={prompts}
           selectedPrompt={promptValue}
           onPromptChange={onPromptChange}
-
           attachedReflections={attachedReflections}
           onRemoveAttachmentsByDate={onRemoveAttachmentsByDate}
           allReflections={reflections}
           onAttachByDate={onAttachByDate}
+          libraryFiles={libraryFiles}
+          attachedFileIds={attachedFileIds}
+          onToggleFileId={onToggleFileId}
         />
       </div>
     </div>

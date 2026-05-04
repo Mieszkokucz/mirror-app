@@ -7,11 +7,22 @@ export interface ChatRequest {
   model?: string;
   user_id: string;
   context_reflection_ids?: string[];
+  context_file_ids?: string[];
+  files?: File[];
 }
 
 export interface ChatResponse {
   response: string;
   session_id: string;
+}
+
+export interface FileResponse {
+  id: string;
+  user_id: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
 }
 
 export interface SessionResponse {
@@ -36,10 +47,19 @@ export interface ReflectionResponse {
 }
 
 export async function sendChatMessage(req: ChatRequest): Promise<ChatResponse> {
+  const form = new FormData();
+  form.append("message", req.message);
+  form.append("user_id", req.user_id);
+  if (req.session_id) form.append("session_id", req.session_id);
+  if (req.prompt_id) form.append("prompt_id", req.prompt_id);
+  if (req.model) form.append("model", req.model);
+  req.context_reflection_ids?.forEach((id) => form.append("context_reflection_ids", id));
+  req.context_file_ids?.forEach((id) => form.append("context_file_ids", id));
+  req.files?.forEach((f) => form.append("files", f));
+
   const res = await fetch(`${API_BASE_URL}/chat/`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
+    body: form,
   });
 
   if (!res.ok) {
@@ -215,4 +235,37 @@ export async function fetchReflections(userId: string): Promise<ReflectionRespon
     throw new Error(`API error ${res.status}: ${text}`);
   }
   return res.json() as Promise<ReflectionResponse[]>;
+}
+
+export async function fetchLibraryFiles(userId: string): Promise<FileResponse[]> {
+  const res = await fetch(`${API_BASE_URL}/files/library?user_id=${userId}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<FileResponse[]>;
+}
+
+export async function uploadLibraryFile(userId: string, file: File): Promise<FileResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE_URL}/files/library?user_id=${userId}`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<FileResponse>;
+}
+
+export async function deleteLibraryFile(fileId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/files/library/${fileId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
 }
