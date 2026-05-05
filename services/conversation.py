@@ -5,7 +5,7 @@ from models.chat import Session as ChatSession, Message, MessageContext
 from models.system_prompts import SystemPrompt
 from models.reflections import DailyReflection
 from models.files import File
-from services.llm_gateway import send_to_anthropic
+from services.llm_gateway import send_to_llm
 from services.files import upload_message_attachment
 
 _TEXT_EXTENSIONS = {".txt", ".md", ".markdown"}
@@ -170,7 +170,7 @@ async def handle_chat(
         {"role": msg.role, "content": msg.content} for msg in session_hist
     )
 
-    response = send_to_anthropic(
+    response = send_to_llm(
         message_to_llm,
         system_prompt=system_prompt,
         model=model,

@@ -67,7 +67,7 @@ def test_library_file_pdf(db_session, test_user, tmp_path):
 
 # --- A. context_file_ids ---
 
-@patch("services.conversation.send_to_anthropic", return_value="ok")
+@patch("services.conversation.send_to_llm", return_value="ok")
 def test_chat_with_library_file_in_context(mock_llm, client, test_user, test_library_file):
     response = client.post(
         "/chat/",
@@ -83,7 +83,7 @@ def test_chat_with_library_file_in_context(mock_llm, client, test_user, test_lib
     assert "Hello from library file" in system_prompt
 
 
-@patch("services.conversation.send_to_anthropic", return_value="ok")
+@patch("services.conversation.send_to_llm", return_value="ok")
 def test_chat_with_markdown_file_in_context(mock_llm, client, test_user, test_library_file_md):
     response = client.post(
         "/chat/",
@@ -99,7 +99,7 @@ def test_chat_with_markdown_file_in_context(mock_llm, client, test_user, test_li
     assert "Markdown heading" in system_prompt
 
 
-@patch("services.conversation.send_to_anthropic", return_value="ok")
+@patch("services.conversation.send_to_llm", return_value="ok")
 def test_chat_with_invalid_file_id(mock_llm, client, test_user):
     response = client.post(
         "/chat/",
@@ -112,7 +112,7 @@ def test_chat_with_invalid_file_id(mock_llm, client, test_user):
     assert response.status_code == 404
 
 
-@patch("services.conversation.send_to_anthropic", return_value="ok")
+@patch("services.conversation.send_to_llm", return_value="ok")
 def test_chat_with_unsupported_file_type_in_context(mock_llm, client, test_user, test_library_file_pdf):
     response = client.post(
         "/chat/",
@@ -127,7 +127,7 @@ def test_chat_with_unsupported_file_type_in_context(mock_llm, client, test_user,
 
 # --- B. Direct file upload ---
 
-@patch("services.conversation.send_to_anthropic", return_value="ok")
+@patch("services.conversation.send_to_llm", return_value="ok")
 def test_chat_with_direct_txt_upload(mock_llm, client, test_user):
     response = client.post(
         "/chat/",
@@ -141,7 +141,7 @@ def test_chat_with_direct_txt_upload(mock_llm, client, test_user):
     assert "inline content" in user_message
 
 
-@patch("services.conversation.send_to_anthropic", return_value="ok")
+@patch("services.conversation.send_to_llm", return_value="ok")
 def test_chat_with_direct_md_upload(mock_llm, client, test_user):
     response = client.post(
         "/chat/",
@@ -155,7 +155,7 @@ def test_chat_with_direct_md_upload(mock_llm, client, test_user):
     assert "Body text" in user_message
 
 
-@patch("services.conversation.send_to_anthropic", return_value="ok")
+@patch("services.conversation.send_to_llm", return_value="ok")
 def test_chat_with_direct_unsupported_file(mock_llm, client, test_user):
     response = client.post(
         "/chat/",
@@ -167,7 +167,7 @@ def test_chat_with_direct_unsupported_file(mock_llm, client, test_user):
 
 # --- C. Historyczne pliki ---
 
-@patch("services.conversation.send_to_anthropic", return_value="ok")
+@patch("services.conversation.send_to_llm", return_value="ok")
 def test_historic_files_included_in_next_message(mock_llm, client, test_user, test_library_file):
     # Pierwsza wiadomość z plikiem
     resp1 = client.post(

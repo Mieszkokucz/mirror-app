@@ -57,7 +57,7 @@ def test_get_session_messages_empty(client):
     assert len(response.json()) == 0
 
 
-@patch("services.conversation.send_to_anthropic", return_value="mocked response")
+@patch("services.conversation.send_to_llm", return_value="mocked response")
 def test_create_chat_new_session(mock_llm, client, test_user):
     response = client.post(
         "/chat/", data={"message": "hi", "user_id": str(test_user.id)}
@@ -68,7 +68,7 @@ def test_create_chat_new_session(mock_llm, client, test_user):
     mock_llm.assert_called_once()
 
 
-@patch("services.conversation.send_to_anthropic", return_value="mocked response")
+@patch("services.conversation.send_to_llm", return_value="mocked response")
 def test_create_chat_with_prompt_id(mock_llm, client, db_session, test_user):
     from models.system_prompts import SystemPrompt
 
@@ -94,7 +94,7 @@ def test_create_chat_with_prompt_id(mock_llm, client, db_session, test_user):
     assert call_kwargs[1]["system_prompt"] == "You are a test assistant."
 
 
-@patch("services.conversation.send_to_anthropic", return_value="mocked response")
+@patch("services.conversation.send_to_llm", return_value="mocked response")
 def test_create_chat_with_invalid_prompt_id(mock_llm, client, test_user):
     response = client.post(
         "/chat/",
@@ -107,7 +107,7 @@ def test_create_chat_with_invalid_prompt_id(mock_llm, client, test_user):
     assert response.status_code == 404
 
 
-@patch("services.conversation.send_to_anthropic", return_value="mocked response")
+@patch("services.conversation.send_to_llm", return_value="mocked response")
 def test_create_chat_existing_session(mock_llm, client, db_session, test_user):
     # add session
     session = Session(user_id=test_user.id)
@@ -130,7 +130,7 @@ def test_create_chat_existing_session(mock_llm, client, db_session, test_user):
     mock_llm.assert_called_once()
 
 
-@patch("services.conversation.send_to_anthropic", return_value="mocked response")
+@patch("services.conversation.send_to_llm", return_value="mocked response")
 def test_create_chat_with_context_reflections(
     mock_llm, client, test_user, test_reflection
 ):
