@@ -65,9 +65,9 @@ export default function Home() {
     }
   }, [chatPromptValue]);
 
-  function handleNewSession() {
+  function handleStartChat(promptId: string = FREE_CHAT_ID) {
     setActiveSessionId(null);
-    setChatPromptValue(FREE_CHAT_ID);
+    setChatPromptValue(promptId);
     setAttachedReflectionIds([]);
     setAttachedFileIds([]);
     setActiveView("chat");
@@ -181,12 +181,12 @@ export default function Home() {
           onEditPrompt={handleEditPrompt}
           onDeletePrompt={handleDeletePrompt}
           onCreatePrompt={handleCreatePrompt}
-          onNewSession={handleNewSession}
+          onNewSession={handleStartChat}
           onSelectSession={handleSelectSession}
           onClose={() => setIsSidebarOpen(false)}
           reflections={reflections}
           onAttachByDate={handleAttachByDate}
-          onSetPromptForChat={setChatPromptValue}
+          onSetPromptForChat={handleStartChat}
         />
       </div>
 

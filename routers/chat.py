@@ -43,6 +43,7 @@ def read_sessions(user_id: uuid.UUID, db: Session = Depends(get_db)):
     return (
         db.query(ChatSession.id, ChatSession.updated_at)
         .filter(ChatSession.user_id == user_id)
+        .order_by(ChatSession.updated_at.desc())
         .all()
     )
 

@@ -352,8 +352,13 @@ export default function ReflectionsView() {
                                 <textarea
                                   value={editContent}
                                   onChange={(e) => setEditContent(e.target.value)}
-                                  rows={4}
-                                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
+                                  ref={(el) => {
+                                    if (el) {
+                                      el.style.height = 'auto';
+                                      el.style.height = el.scrollHeight + 'px';
+                                    }
+                                  }}
+                                  className="w-full resize-none overflow-hidden rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
                                 />
                                 <div className="flex gap-2">
                                   <button
