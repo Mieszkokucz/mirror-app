@@ -10,7 +10,7 @@ import os
 from dotenv import load_dotenv
 
 from models.reflections import Users
-from models.reflections import DailyReflection
+from models.reflections import DailyReflection, PeriodicReflection
 from models.system_prompts import SystemPrompt
 
 
@@ -95,3 +95,19 @@ def test_builtin_prompt(db_session):
     db_session.refresh(prompt)
 
     yield prompt
+
+
+@pytest.fixture
+def test_periodic_reflection(db_session, test_user):
+    reflection = PeriodicReflection(
+        user_id=test_user.id,
+        reflection_type="weekly",
+        date_from="2026-03-10",
+        date_to="2026-03-16",
+        content="test periodic",
+    )
+    db_session.add(reflection)
+    db_session.commit()
+    db_session.refresh(reflection)
+
+    yield reflection

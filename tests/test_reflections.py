@@ -273,3 +273,95 @@ def test_export_reflections_empty(client, test_user):
         "/reflections/export", params={"user_id": str(test_user.id)}
     )
     assert response.status_code == 404
+
+
+def test_create_periodic_reflection(client, test_user):
+    response = client.post(
+        "/periodic-reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "weekly",
+            "content": "weekly summary",
+            "date_from": "2026-03-10",
+            "date_to": "2026-03-16",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_get_periodic_reflections_list(client, test_user):
+    client.post(
+        "/periodic-reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "weekly",
+            "content": "week one",
+            "date_from": "2026-03-10",
+            "date_to": "2026-03-16",
+        },
+    )
+    client.post(
+        "/periodic-reflections/",
+        json={
+            "user_id": str(test_user.id),
+            "reflection_type": "monthly",
+            "content": "march summary",
+            "date_from": "2026-03-01",
+            "date_to": "2026-03-31",
+        },
+    )
+
+    response = client.get("/periodic-reflections/", params={"user_id": str(test_user.id)})
+
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+
+
+def test_get_periodic_reflection_by_id(client, test_periodic_reflection):
+    response = client.get(f"/periodic-reflections/{test_periodic_reflection.id}")
+
+    assert response.status_code == 200
+    assert isinstance(response.json(), dict)
+    assert response.json()["reflection_type"] == "weekly"
+    assert response.json()["content"] == "test periodic"
+    assert response.json()["date_from"] == "2026-03-10"
+    assert response.json()["date_to"] == "2026-03-16"
+
+
+def test_get_periodic_reflection_by_id_not_found(client):
+    response = client.get(f"/periodic-reflections/{uuid.uuid4()}")
+    assert response.status_code == 404
+
+
+def test_update_periodic_reflection(client, test_periodic_reflection):
+    response = client.patch(
+        f"/periodic-reflections/{test_periodic_reflection.id}",
+        json={
+            "content": "updated periodic content",
+            "reflection_type": "monthly",
+        },
+    )
+
+    assert response.status_code == 200
+    assert isinstance(response.json(), dict)
+    assert response.json()["content"] == "updated periodic content"
+    assert response.json()["reflection_type"] == "monthly"
+
+
+def test_update_periodic_reflection_not_found(client):
+    response = client.patch(
+        f"/periodic-reflections/{uuid.uuid4()}",
+        json={"content": "no such reflection"},
+    )
+    assert response.status_code == 404
+
+
+def test_delete_periodic_reflection(client, test_periodic_reflection):
+    response = client.delete(f"/periodic-reflections/{test_periodic_reflection.id}")
+    assert response.status_code == 204
+
+
+def test_delete_periodic_reflection_not_found(client):
+    response = client.delete(f"/periodic-reflections/{uuid.uuid4()}")
+    assert response.status_code == 404
