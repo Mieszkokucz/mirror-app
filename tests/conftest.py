@@ -12,6 +12,10 @@ from dotenv import load_dotenv
 from models.reflections import Users
 from models.reflections import DailyReflection, PeriodicReflection
 from models.system_prompts import SystemPrompt
+from models.projects import Project
+import models.chat
+import models.files
+import models.projects
 
 
 load_dotenv()
@@ -65,6 +69,16 @@ def test_reflection(db_session, test_user):
     db_session.refresh(reflection)
 
     yield reflection
+
+
+@pytest.fixture
+def test_project(db_session, test_user):
+    project = Project(user_id=test_user.id, name="Test Project")
+    db_session.add(project)
+    db_session.commit()
+    db_session.refresh(project)
+
+    yield project
 
 
 @pytest.fixture

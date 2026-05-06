@@ -20,6 +20,7 @@ class SystemPrompt(Base):
         UUID, primary_key=True, nullable=False, server_default=text("gen_random_uuid()")
     )
     user_id = Column(UUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    project_id = Column(UUID, ForeignKey("project.id", ondelete="CASCADE"), nullable=True)
     name = Column(String(50), nullable=False)
     display_name = Column(String(100), nullable=False)
     content = Column(Text, nullable=False)

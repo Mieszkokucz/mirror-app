@@ -31,6 +31,7 @@ import models.reflections
 import models.chat
 import models.system_prompts
 import models.files
+import models.projects
 
 target_metadata = Base.metadata
 

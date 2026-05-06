@@ -20,6 +20,7 @@ class Session(Base):
         UUID, primary_key=True, nullable=False, server_default=text("gen_random_uuid()")
     )
     user_id = Column(UUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(UUID, ForeignKey("project.id", ondelete="CASCADE"), nullable=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=text("NOW()")
     )

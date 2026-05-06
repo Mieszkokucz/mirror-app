@@ -15,6 +15,7 @@ class File(Base):
     mime_type = Column(String(100), nullable=False)
     size_bytes = Column(Integer, nullable=False)
     content_hash = Column(String(64), nullable=False)
+    project_id = Column(UUID, ForeignKey("project.id", ondelete="CASCADE"), nullable=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=text("NOW()")
     )
