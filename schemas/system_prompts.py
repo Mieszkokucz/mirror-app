@@ -19,6 +19,7 @@ class SystemPromptResponse(BaseModel):
     content: str
     created_at: datetime.datetime
     updated_at: datetime.datetime
+    project_id: Optional[uuid.UUID] = None
 
     model_config = ConfigDict(from_attributes=True)
 

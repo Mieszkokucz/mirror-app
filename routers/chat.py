@@ -18,6 +18,7 @@ async def create_chat(
     user_id: uuid.UUID = Form(...),
     session_id: Optional[uuid.UUID] = Form(None),
     prompt_id: Optional[uuid.UUID] = Form(None),
+    project_id: Optional[uuid.UUID] = Form(None),
     model: str = Form("claude-haiku-4-5-20251001"),
     context_reflection_ids: Optional[List[uuid.UUID]] = Form(None),
     context_file_ids: Optional[List[uuid.UUID]] = Form(None),
@@ -30,6 +31,7 @@ async def create_chat(
         message,
         session_id,
         prompt_id,
+        project_id,
         model,
         context_reflection_ids,
         context_file_ids,
@@ -39,13 +41,20 @@ async def create_chat(
 
 
 @router.get("/chat/sessions", response_model=list[SessionResponse])
-def read_sessions(user_id: uuid.UUID, db: Session = Depends(get_db)):
-    return (
-        db.query(ChatSession.id, ChatSession.updated_at)
+def read_sessions(
+    user_id: uuid.UUID,
+    project_id: Optional[uuid.UUID] = None,
+    db: Session = Depends(get_db),
+):
+    q = (
+        db.query(ChatSession.id, ChatSession.updated_at, ChatSession.project_id)
         .filter(ChatSession.user_id == user_id)
-        .order_by(ChatSession.updated_at.desc())
-        .all()
     )
+    if project_id is not None:
+        q = q.filter(ChatSession.project_id == project_id)
+    else:
+        q = q.filter(ChatSession.project_id.is_(None))
+    return q.order_by(ChatSession.updated_at.desc()).all()
 
 
 @router.get(

@@ -4,6 +4,7 @@ export interface ChatRequest {
   message: string;
   session_id?: string | null;
   prompt_id?: string | null;
+  project_id?: string | null;
   model?: string;
   user_id: string;
   context_reflection_ids?: string[];
@@ -28,6 +29,15 @@ export interface FileResponse {
 export interface SessionResponse {
   id: string;
   updated_at: string;
+  project_id?: string | null;
+}
+
+export interface ProjectResponse {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string | null;
+  created_at: string;
 }
 
 export interface MessageResponse {
@@ -51,7 +61,8 @@ export async function sendChatMessage(req: ChatRequest): Promise<ChatResponse> {
   form.append("message", req.message);
   form.append("user_id", req.user_id);
   if (req.session_id) form.append("session_id", req.session_id);
-  if (req.prompt_id) form.append("prompt_id", req.prompt_id);
+  if (req.prompt_id && typeof req.prompt_id === "string") form.append("prompt_id", req.prompt_id);
+  if (req.project_id) form.append("project_id", req.project_id);
   if (req.model) form.append("model", req.model);
   req.context_reflection_ids?.forEach((id) => form.append("context_reflection_ids", id));
   req.context_file_ids?.forEach((id) => form.append("context_file_ids", id));
@@ -70,8 +81,10 @@ export async function sendChatMessage(req: ChatRequest): Promise<ChatResponse> {
   return res.json() as Promise<ChatResponse>;
 }
 
-export async function fetchSessions(userId: string): Promise<SessionResponse[]> {
-  const res = await fetch(`${API_BASE_URL}/chat/sessions?user_id=${userId}`);
+export async function fetchSessions(userId: string, projectId?: string): Promise<SessionResponse[]> {
+  const params = new URLSearchParams({ user_id: userId });
+  if (projectId) params.set("project_id", projectId);
+  const res = await fetch(`${API_BASE_URL}/chat/sessions?${params}`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
@@ -159,8 +172,10 @@ export interface SystemPromptUpdate {
   content?: string;
 }
 
-export async function fetchSystemPrompts(userId: string): Promise<SystemPromptResponse[]> {
-  const res = await fetch(`${API_BASE_URL}/system-prompts/?user_id=${userId}`);
+export async function fetchSystemPrompts(userId: string, projectId?: string): Promise<SystemPromptResponse[]> {
+  const params = new URLSearchParams({ user_id: userId });
+  if (projectId) params.set("project_id", projectId);
+  const res = await fetch(`${API_BASE_URL}/system-prompts/?${params}`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
@@ -237,8 +252,10 @@ export async function fetchReflections(userId: string): Promise<ReflectionRespon
   return res.json() as Promise<ReflectionResponse[]>;
 }
 
-export async function fetchLibraryFiles(userId: string): Promise<FileResponse[]> {
-  const res = await fetch(`${API_BASE_URL}/files/library?user_id=${userId}`);
+export async function fetchLibraryFiles(userId: string, projectId?: string): Promise<FileResponse[]> {
+  const params = new URLSearchParams({ user_id: userId });
+  if (projectId) params.set("project_id", projectId);
+  const res = await fetch(`${API_BASE_URL}/files/library?${params}`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
@@ -246,10 +263,12 @@ export async function fetchLibraryFiles(userId: string): Promise<FileResponse[]>
   return res.json() as Promise<FileResponse[]>;
 }
 
-export async function uploadLibraryFile(userId: string, file: File): Promise<FileResponse> {
+export async function uploadLibraryFile(userId: string, file: File, projectId?: string): Promise<FileResponse> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${API_BASE_URL}/files/library?user_id=${userId}`, {
+  const params = new URLSearchParams({ user_id: userId });
+  if (projectId) params.set("project_id", projectId);
+  const res = await fetch(`${API_BASE_URL}/files/library?${params}`, {
     method: "POST",
     body: form,
   });
@@ -262,6 +281,38 @@ export async function uploadLibraryFile(userId: string, file: File): Promise<Fil
 
 export async function deleteLibraryFile(fileId: string): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/files/library/${fileId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+}
+
+export async function fetchProjects(userId: string): Promise<ProjectResponse[]> {
+  const res = await fetch(`${API_BASE_URL}/projects/?user_id=${userId}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<ProjectResponse[]>;
+}
+
+export async function createProject(userId: string, name: string, description?: string): Promise<ProjectResponse> {
+  const res = await fetch(`${API_BASE_URL}/projects/?user_id=${userId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, description }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<ProjectResponse>;
+}
+
+export async function deleteProject(projectId: string, userId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/projects/${projectId}?user_id=${userId}`, {
     method: "DELETE",
   });
   if (!res.ok) {

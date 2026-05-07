@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { SessionResponse, SystemPromptResponse, ReflectionResponse, FileResponse, fetchSessions, fetchSystemPrompts, fetchReflections, fetchLibraryFiles } from "@/lib/api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { SessionResponse, SystemPromptResponse, ReflectionResponse, FileResponse, ProjectResponse, fetchSessions, fetchSystemPrompts, fetchReflections, fetchLibraryFiles, fetchProjects, createProject, deleteProject } from "@/lib/api";
 import { USER_ID, FREE_CHAT_ID } from "@/lib/constants";
 import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
@@ -19,6 +19,9 @@ export default function Home() {
   const [prompts, setPrompts] = useState<SystemPromptResponse[]>([]);
   const [reflections, setReflections] = useState<ReflectionResponse[]>([]);
   const [libraryFiles, setLibraryFiles] = useState<FileResponse[]>([]);
+  const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const isFirstRender = useRef(true);
 
   // Chat attachment state (lifted from ChatWindow for sidebar access)
   const [chatPromptValue, setChatPromptValue] = useState(FREE_CHAT_ID);
@@ -30,8 +33,12 @@ export default function Home() {
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
   const [promptPanelMode, setPromptPanelMode] = useState<PromptPanelMode>("view");
 
+  function reloadSessions() {
+    fetchSessions(USER_ID, activeProjectId ?? undefined).then(setSessions).catch(() => {});
+  }
+
   function reloadPrompts() {
-    fetchSystemPrompts(USER_ID).then(setPrompts).catch(() => {});
+    fetchSystemPrompts(USER_ID, activeProjectId ?? undefined).then(setPrompts).catch(() => {});
   }
 
   function reloadReflections() {
@@ -39,15 +46,32 @@ export default function Home() {
   }
 
   function reloadLibrary() {
-    fetchLibraryFiles(USER_ID).then(setLibraryFiles).catch(() => {});
+    fetchLibraryFiles(USER_ID, activeProjectId ?? undefined).then(setLibraryFiles).catch(() => {});
+  }
+
+  function reloadProjects() {
+    fetchProjects(USER_ID).then(setProjects).catch(() => {});
   }
 
   useEffect(() => {
-    fetchSessions(USER_ID).then(setSessions).catch(() => {});
+    reloadSessions();
     reloadPrompts();
     reloadReflections();
     reloadLibrary();
+    reloadProjects();
   }, []);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    reloadSessions();
+    reloadPrompts();
+    reloadLibrary();
+    setActiveSessionId(null);
+    setChatPromptValue(FREE_CHAT_ID);
+  }, [activeProjectId]);
 
   // Auto-attach today's reflections when evening/midday prompt is selected
   const AUTO_ATTACH_PROMPTS = ["evening_reflection", "midday_reflection"];
@@ -81,7 +105,18 @@ export default function Home() {
 
   function handleSessionCreated(sessionId: string) {
     setActiveSessionId(sessionId);
-    fetchSessions(USER_ID).then(setSessions).catch(() => {});
+    reloadSessions();
+  }
+
+  async function handleProjectCreate(name: string, description?: string) {
+    await createProject(USER_ID, name, description);
+    reloadProjects();
+  }
+
+  async function handleProjectDelete(id: string) {
+    await deleteProject(id, USER_ID);
+    if (activeProjectId === id) setActiveProjectId(null);
+    reloadProjects();
   }
 
   function handleAttachByDate(date: string) {
@@ -155,6 +190,10 @@ export default function Home() {
   }
 
   const selectedPrompt = prompts.find((p) => p.id === selectedPromptId) ?? null;
+  const activeProject = useMemo(
+    () => projects.find((p) => p.id === activeProjectId) ?? null,
+    [projects, activeProjectId]
+  );
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-950">
@@ -187,6 +226,11 @@ export default function Home() {
           reflections={reflections}
           onAttachByDate={handleAttachByDate}
           onSetPromptForChat={handleStartChat}
+          projects={projects}
+          activeProjectId={activeProjectId}
+          onProjectSelect={setActiveProjectId}
+          onProjectCreate={handleProjectCreate}
+          onProjectDelete={handleProjectDelete}
         />
       </div>
 
@@ -231,6 +275,21 @@ export default function Home() {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
         <div className="flex flex-shrink-0 items-center gap-3 border-b border-gray-800 bg-gray-950 px-4 py-4 pl-12">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1 text-sm">
+            <span className="text-gray-600">Mirror</span>
+            <span className="text-gray-700">/</span>
+            {activeProjectId ? (
+              <button
+                onClick={() => setActiveProjectId(null)}
+                className="text-gray-300 hover:text-gray-100 transition"
+              >
+                {activeProject?.name ?? "Project"}
+              </button>
+            ) : (
+              <span className="text-gray-500">Main</span>
+            )}
+          </div>
           <div className="ml-auto flex gap-1">
             <button
               onClick={() => handleSetActiveView("chat")}
@@ -282,11 +341,12 @@ export default function Home() {
               libraryFiles={libraryFiles}
               attachedFileIds={attachedFileIds}
               onToggleFileId={handleToggleFileId}
+              activeProjectId={activeProjectId}
             />
           ) : activeView === "reflections" ? (
             <ReflectionsView />
           ) : (
-            <LibraryView files={libraryFiles} onFilesChange={reloadLibrary} />
+            <LibraryView files={libraryFiles} onFilesChange={reloadLibrary} activeProjectId={activeProjectId} />
           )}
         </div>
       </div>

@@ -228,6 +228,43 @@ def test_list_library_files(client, test_user, test_library_file):
     assert str(test_library_file.id) in ids
 
 
+def test_list_library_files_filter_by_project(client, db_session, test_user, test_project, tmp_path):
+    content = b"project file"
+    file_path = tmp_path / "proj.txt"
+    file_path.write_bytes(content)
+
+    file_with_project = File(
+        user_id=test_user.id,
+        filename="proj.txt",
+        storage_path=str(file_path),
+        mime_type="text/plain",
+        size_bytes=len(content),
+        content_hash="proj_hash",
+        project_id=test_project.id,
+    )
+    file_without_project = File(
+        user_id=test_user.id,
+        filename="other.txt",
+        storage_path=str(tmp_path / "other.txt"),
+        mime_type="text/plain",
+        size_bytes=5,
+        content_hash="other_hash",
+    )
+    db_session.add(file_with_project)
+    db_session.add(file_without_project)
+    db_session.commit()
+    db_session.refresh(file_with_project)
+
+    response = client.get(
+        "/files/library",
+        params={"user_id": str(test_user.id), "project_id": str(test_project.id)},
+    )
+    assert response.status_code == 200
+    ids = [f["id"] for f in response.json()]
+    assert str(file_with_project.id) in ids
+    assert len(ids) == 1
+
+
 def test_delete_library_file(client, test_user, test_library_file):
     response = client.delete(f"/files/library/{test_library_file.id}")
     assert response.status_code == 204

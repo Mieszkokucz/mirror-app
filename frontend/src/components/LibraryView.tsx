@@ -21,9 +21,10 @@ function formatDate(iso: string): string {
 interface LibraryViewProps {
   files: FileResponse[];
   onFilesChange: () => void;
+  activeProjectId?: string | null;
 }
 
-export default function LibraryView({ files, onFilesChange }: LibraryViewProps) {
+export default function LibraryView({ files, onFilesChange, activeProjectId }: LibraryViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +38,7 @@ export default function LibraryView({ files, onFilesChange }: LibraryViewProps) 
     setError(null);
     setUploading(true);
     try {
-      await Promise.all(selected.map((f) => uploadLibraryFile(USER_ID, f)));
+      await Promise.all(selected.map((f) => uploadLibraryFile(USER_ID, f, activeProjectId ?? undefined)));
       onFilesChange();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");

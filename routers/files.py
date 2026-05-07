@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from typing import Optional
 from database import get_db
 from sqlalchemy.orm import Session
 from models.files import File as FileModel
@@ -12,15 +13,23 @@ router = APIRouter()
 @router.post("/files/library", response_model=FileResponse, status_code=201)
 async def upload_to_library(
     user_id: uuid.UUID = Query(...),
+    project_id: Optional[uuid.UUID] = Query(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    return await upload_library_file(file, user_id, db)
+    return await upload_library_file(file, user_id, db, project_id)
 
 
 @router.get("/files/library", response_model=list[FileResponse])
-def list_library_files(user_id: uuid.UUID, db: Session = Depends(get_db)):
-    return db.query(FileModel).filter(FileModel.user_id == user_id).all()
+def list_library_files(
+    user_id: uuid.UUID,
+    project_id: Optional[uuid.UUID] = None,
+    db: Session = Depends(get_db),
+):
+    q = db.query(FileModel).filter(FileModel.user_id == user_id)
+    if project_id is not None:
+        q = q.filter(FileModel.project_id == project_id)
+    return q.all()
 
 
 @router.delete("/files/library/{file_id}", status_code=204)

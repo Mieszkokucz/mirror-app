@@ -30,6 +30,7 @@ interface ChatWindowProps {
   libraryFiles: FileResponse[];
   attachedFileIds: string[];
   onToggleFileId: (id: string) => void;
+  activeProjectId?: string | null;
 }
 
 export default function ChatWindow({
@@ -46,6 +47,7 @@ export default function ChatWindow({
   libraryFiles,
   attachedFileIds,
   onToggleFileId,
+  activeProjectId,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -111,6 +113,7 @@ export default function ChatWindow({
         message,
         session_id: sessionId ?? null,
         prompt_id: promptValue === FREE_CHAT_ID ? undefined : promptValue,
+        project_id: activeProjectId ?? undefined,
         model,
         user_id: USER_ID,
         context_reflection_ids: attachedReflectionIds.length > 0 ? attachedReflectionIds : undefined,

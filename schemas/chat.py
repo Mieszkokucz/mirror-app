@@ -24,6 +24,7 @@ class ChatResponse(BaseModel):
 class SessionResponse(BaseModel):
     id: uuid.UUID
     updated_at: datetime
+    project_id: Optional[uuid.UUID] = None
 
 
 class MessageResponse(BaseModel):

@@ -11,7 +11,7 @@ UPLOAD_DIR = "uploads"
 
 
 async def upload_library_file(
-    file: UploadFile, user_id: uuid.UUID, db: Session
+    file: UploadFile, user_id: uuid.UUID, db: Session, project_id: uuid.UUID | None = None
 ) -> File:
     contents = await file.read()
     content_hash = hashlib.sha256(contents).hexdigest()
@@ -25,6 +25,7 @@ async def upload_library_file(
 
     db_file = File(
         user_id=user_id,
+        project_id=project_id,
         filename=file.filename,
         storage_path=storage_path,
         mime_type=file.content_type,

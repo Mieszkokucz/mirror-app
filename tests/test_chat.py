@@ -24,6 +24,35 @@ def test_get_sessions_list_empty(client, test_user):
     assert len(response.json()) == 0
 
 
+def test_get_sessions_list_filter_by_project(client, db_session, test_user, test_project):
+    session_with_project = Session(user_id=test_user.id, project_id=test_project.id)
+    session_without_project = Session(user_id=test_user.id)
+    db_session.add(session_with_project)
+    db_session.add(session_without_project)
+    db_session.commit()
+
+    response = client.get(
+        "/chat/sessions",
+        params={"user_id": str(test_user.id), "project_id": str(test_project.id)},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["project_id"] == str(test_project.id)
+
+
+def test_get_sessions_list_no_project_filter_returns_only_global(client, db_session, test_user, test_project):
+    db_session.add(Session(user_id=test_user.id, project_id=test_project.id))
+    db_session.add(Session(user_id=test_user.id))
+    db_session.commit()
+
+    response = client.get("/chat/sessions", params={"user_id": str(test_user.id)})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["project_id"] is None
+
+
 def test_get_session_messages_list(client, db_session, test_user):
     # add session
     session = Session(user_id=test_user.id)

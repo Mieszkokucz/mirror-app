@@ -17,10 +17,10 @@ def _is_text_file(filename: str, mime_type: str) -> bool:
 
 
 async def handle_chat(
-    db, user_id, message, session_id, prompt_id, model, context_reflection_ids, context_file_ids, files
+    db, user_id, message, session_id, prompt_id, project_id, model, context_reflection_ids, context_file_ids, files
 ):
     if session_id is None:
-        db_session = ChatSession(user_id=user_id)
+        db_session = ChatSession(user_id=user_id, project_id=project_id)
         db.add(db_session)
         db.commit()
         db.refresh(db_session)

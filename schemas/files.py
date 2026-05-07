@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from typing import Optional
 import uuid
 import datetime
 
@@ -10,6 +11,7 @@ class FileResponse(BaseModel):
     mime_type: str
     size_bytes: int
     created_at: datetime.datetime
+    project_id: Optional[uuid.UUID] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -33,6 +33,29 @@ def test_get_system_prompts_list(client, test_user, test_system_prompt, test_bui
     assert "builtin_prompt" in names
 
 
+def test_get_system_prompts_filter_by_project(client, db_session, test_user, test_project, test_builtin_prompt):
+    from models.system_prompts import SystemPrompt
+
+    prompt_with_project = SystemPrompt(
+        user_id=test_user.id,
+        project_id=test_project.id,
+        name="project_prompt",
+        display_name="Project Prompt",
+        content="For project only.",
+    )
+    db_session.add(prompt_with_project)
+    db_session.commit()
+
+    response = client.get(
+        "/system-prompts/",
+        params={"user_id": str(test_user.id), "project_id": str(test_project.id)},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "project_prompt"
+
+
 def test_get_system_prompt_by_id(client, test_system_prompt):
     response = client.get(f"/system-prompts/{test_system_prompt.id}")
     assert response.status_code == 200

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
 from sqlalchemy.orm import Session
 from database import get_db
 from models.system_prompts import SystemPrompt
@@ -29,7 +30,17 @@ def create_system_prompt(prompt: SystemPromptCreate, db: Session = Depends(get_d
 
 
 @router.get("/system-prompts/", response_model=list[SystemPromptResponse])
-def list_system_prompts(user_id: uuid.UUID, db: Session = Depends(get_db)):
+def list_system_prompts(
+    user_id: uuid.UUID,
+    project_id: Optional[uuid.UUID] = None,
+    db: Session = Depends(get_db),
+):
+    if project_id is not None:
+        return (
+            db.query(SystemPrompt)
+            .filter(SystemPrompt.project_id == project_id)
+            .all()
+        )
     return (
         db.query(SystemPrompt)
         .filter((SystemPrompt.user_id == user_id) | (SystemPrompt.user_id.is_(None)))
