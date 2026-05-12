@@ -26,7 +26,7 @@ def _call_anthropic(messages, system_prompt, model):
 def _call_openai(messages, system_prompt, model):
     full_messages = [{"role": "system", "content": system_prompt}] + messages
     resp = _get_openai_client().chat.completions.create(
-        model=model, max_tokens=5000, messages=full_messages
+        model=model, max_completion_tokens=5000, messages=full_messages
     )
     return resp.choices[0].message.content
 

@@ -9,9 +9,12 @@ class ChatRequest(BaseModel):
     user_id: uuid.UUID
     session_id: Optional[uuid.UUID] = None
     prompt_id: Optional[uuid.UUID] = None
-    model: Literal["claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"] = (
-        "claude-haiku-4-5-20251001"
-    )
+    model: Literal[
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-4-20250514",
+        "gpt-5.4",
+        "gpt-5.4-mini",
+    ] = "claude-haiku-4-5-20251001"
     context_reflection_ids: Optional[List[uuid.UUID]] = None
     context_file_ids: Optional[List[uuid.UUID]] = None
 

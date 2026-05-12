@@ -5,6 +5,8 @@ export const USER_ID = process.env.NEXT_PUBLIC_USER_ID!;
 export const MODELS = [
   { value: "claude-haiku-4-5-20251001", label: "Haiku" },
   { value: "claude-sonnet-4-20250514", label: "Sonnet" },
+  { value: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+  { value: "gpt-5.4", label: "GPT-5.4" },
 ] as const;
 
 export const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
