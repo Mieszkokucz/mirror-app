@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./constants";
+import { triggerBlobDownload } from "./utils";
 
 export interface ChatRequest {
   message: string;
@@ -234,13 +235,7 @@ export async function exportReflections(userId: string, dateFrom?: string, dateT
   const filenameMatch = disposition.match(/filename=(.+)/);
   const filename = filenameMatch ? filenameMatch[1] : "reflections_export.txt";
 
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  triggerBlobDownload(await res.blob(), filename);
 }
 
 export async function fetchReflections(userId: string): Promise<ReflectionResponse[]> {
@@ -319,4 +314,21 @@ export async function deleteProject(projectId: string, userId: string): Promise<
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
   }
+}
+
+export async function exportLibraryFiles(userId: string, projectId?: string | null): Promise<void> {
+  const params = new URLSearchParams({ user_id: userId });
+  if (projectId) params.set("project_id", projectId);
+
+  const res = await fetch(`${API_BASE_URL}/files/library/export?${params}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const filenameMatch = disposition.match(/filename=(.+)/);
+  const filename = filenameMatch ? filenameMatch[1] : "project_export.zip";
+
+  triggerBlobDownload(await res.blob(), filename);
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileResponse, fetchLibraryFiles, uploadLibraryFile, deleteLibraryFile } from "@/lib/api";
+import { FileResponse, fetchLibraryFiles, uploadLibraryFile, deleteLibraryFile, exportLibraryFiles } from "@/lib/api";
 import { USER_ID } from "@/lib/constants";
 
 function formatBytes(bytes: number): string {
@@ -29,6 +29,7 @@ export default function LibraryView({ files, onFilesChange, activeProjectId }: L
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
@@ -44,6 +45,18 @@ export default function LibraryView({ files, onFilesChange, activeProjectId }: L
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleExport() {
+    setError(null);
+    setExporting(true);
+    try {
+      await exportLibraryFiles(USER_ID, activeProjectId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed.");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -72,7 +85,7 @@ export default function LibraryView({ files, onFilesChange, activeProjectId }: L
           </div>
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            disabled={uploading || exporting}
             className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {uploading ? (
@@ -86,6 +99,23 @@ export default function LibraryView({ files, onFilesChange, activeProjectId }: L
               </svg>
             )}
             Upload
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={exporting || uploading}
+            className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {exporting ? (
+              <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            )}
+            Export
           </button>
           <input
             ref={fileInputRef}

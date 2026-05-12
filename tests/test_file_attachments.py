@@ -1,4 +1,6 @@
+import io
 import uuid
+import zipfile
 import pytest
 from unittest.mock import patch
 
@@ -272,3 +274,95 @@ def test_delete_library_file(client, test_user, test_library_file):
     list_response = client.get("/files/library", params={"user_id": str(test_user.id)})
     ids = [f["id"] for f in list_response.json()]
     assert str(test_library_file.id) not in ids
+
+
+def test_export_library_files_as_zip(client, db_session, test_user, test_project, tmp_path):
+    content = b"hello world"
+    file_path = tmp_path / "export_doc.txt"
+    file_path.write_bytes(content)
+
+    db_file = File(
+        user_id=test_user.id,
+        filename="export_doc.txt",
+        storage_path=str(file_path),
+        mime_type="text/plain",
+        size_bytes=len(content),
+        content_hash="abc123",
+        project_id=test_project.id,
+    )
+    db_session.add(db_file)
+    db_session.commit()
+
+    response = client.get(
+        "/files/library/export",
+        params={"user_id": str(test_user.id), "project_id": str(test_project.id)},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert "attachment" in response.headers["content-disposition"]
+
+    zf = zipfile.ZipFile(io.BytesIO(response.content))
+    assert "export_doc.txt" in zf.namelist()
+    assert zf.read("export_doc.txt") == content
+
+
+def test_export_library_files_404_when_empty(client, test_user, test_project):
+    response = client.get(
+        "/files/library/export",
+        params={"user_id": str(test_user.id), "project_id": str(test_project.id)},
+    )
+    assert response.status_code == 404
+
+
+def test_export_library_files_deduplicates_filenames(client, db_session, test_user, test_project, tmp_path):
+    content_a = b"file one"
+    content_b = b"file two"
+    content_c = b"file three"
+
+    for i, content in enumerate([content_a, content_b, content_c]):
+        p = tmp_path / f"real_{i}.txt"
+        p.write_bytes(content)
+        db_session.add(File(
+            user_id=test_user.id,
+            filename="raport.txt",
+            storage_path=str(p),
+            mime_type="text/plain",
+            size_bytes=len(content),
+            content_hash=f"hash{i}",
+            project_id=test_project.id,
+        ))
+    db_session.commit()
+
+    response = client.get(
+        "/files/library/export",
+        params={"user_id": str(test_user.id), "project_id": str(test_project.id)},
+    )
+    assert response.status_code == 200
+
+    zf = zipfile.ZipFile(io.BytesIO(response.content))
+    names = zf.namelist()
+    assert "raport.txt" in names
+    assert "raport_1.txt" in names
+    assert "raport_2.txt" in names
+    assert len(names) == 3
+
+
+def test_export_library_files_no_project(client, db_session, test_user, tmp_path):
+    content = b"no project file"
+    file_path = tmp_path / "noproj.txt"
+    file_path.write_bytes(content)
+    db_session.add(File(
+        user_id=test_user.id,
+        filename="noproj.txt",
+        storage_path=str(file_path),
+        mime_type="text/plain",
+        size_bytes=len(content),
+        content_hash="noproj_hash",
+        project_id=None,
+    ))
+    db_session.commit()
+
+    response = client.get("/files/library/export", params={"user_id": str(test_user.id)})
+    assert response.status_code == 200
+    zf = zipfile.ZipFile(io.BytesIO(response.content))
+    assert "noproj.txt" in zf.namelist()
