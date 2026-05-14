@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SessionResponse, SystemPromptResponse, ReflectionResponse, FileResponse, ProjectResponse, fetchSessions, fetchSystemPrompts, fetchReflections, fetchLibraryFiles, fetchProjects, createProject, deleteProject } from "@/lib/api";
+import { SessionResponse, SystemPromptResponse, ReflectionResponse, FileResponse, ProjectResponse, fetchSessions, fetchSystemPrompts, fetchReflections, fetchLibraryFiles, fetchProjects, createProject, deleteProject, fetchAutoContext } from "@/lib/api";
 import { USER_ID, FREE_CHAT_ID } from "@/lib/constants";
 import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
@@ -27,6 +27,7 @@ export default function Home() {
   const [chatPromptValue, setChatPromptValue] = useState(FREE_CHAT_ID);
   const [attachedReflectionIds, setAttachedReflectionIds] = useState<string[]>([]);
   const [attachedFileIds, setAttachedFileIds] = useState<string[]>([]);
+  const [periodicDateRange, setPeriodicDateRange] = useState<{ dateFrom: string; dateTo: string } | null>(null);
 
   // Prompt panel state
   const [promptPanelOpen, setPromptPanelOpen] = useState(false);
@@ -89,13 +90,44 @@ export default function Home() {
     }
   }, [chatPromptValue]);
 
+  const PERIODIC_DAYS_BACK: Partial<Record<string, number>> = {
+    periodic_weekly: 6,
+    periodic_monthly: 29,
+  };
+
+  useEffect(() => {
+    if (chatPromptValue === FREE_CHAT_ID) { setPeriodicDateRange(null); return; }
+    const prompt = prompts.find((p) => p.id === chatPromptValue);
+    if (!prompt) { setPeriodicDateRange(null); return; }
+    const daysBack = prompt.type ? PERIODIC_DAYS_BACK[prompt.type] : undefined;
+    if (daysBack !== undefined) {
+      const today = new Date();
+      const from = new Date(today);
+      from.setDate(from.getDate() - daysBack);
+      setPeriodicDateRange({ dateFrom: from.toISOString().slice(0, 10), dateTo: today.toISOString().slice(0, 10) });
+      setAttachedReflectionIds([]);
+    } else {
+      setPeriodicDateRange(null);
+    }
+  }, [chatPromptValue]);
+
   function handleStartChat(promptId: string = FREE_CHAT_ID) {
     setActiveSessionId(null);
     setChatPromptValue(promptId);
     setAttachedReflectionIds([]);
     setAttachedFileIds([]);
+    setPeriodicDateRange(null);
     setActiveView("chat");
     setIsSidebarOpen(false);
+  }
+
+  async function handleApplyPeriodicRange() {
+    if (!periodicDateRange || chatPromptValue === FREE_CHAT_ID) return;
+    const range = periodicDateRange;
+    setPeriodicDateRange(null);
+    const results = await fetchAutoContext(chatPromptValue, USER_ID, range.dateFrom, range.dateTo);
+    const ids = results.map((r) => r.id);
+    setAttachedReflectionIds((prev) => [...new Set([...prev, ...ids])]);
   }
 
   function handleSelectSession(sessionId: string) {
@@ -342,6 +374,9 @@ export default function Home() {
               attachedFileIds={attachedFileIds}
               onToggleFileId={handleToggleFileId}
               activeProjectId={activeProjectId}
+              periodicDateRange={periodicDateRange}
+              onPeriodicDateRangeChange={setPeriodicDateRange}
+              onApplyPeriodicRange={handleApplyPeriodicRange}
             />
           ) : activeView === "reflections" ? (
             <ReflectionsView />

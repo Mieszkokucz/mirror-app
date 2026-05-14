@@ -5,6 +5,7 @@ import { sendChatMessage, fetchSessionMessages, SystemPromptResponse, Reflection
 import { MODELS, DEFAULT_MODEL, FREE_CHAT_ID, FREE_CHAT_META, USER_ID } from "@/lib/constants";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
+import PeriodicRangePanel from "./PeriodicRangePanel";
 
 interface Message {
   role: "user" | "assistant";
@@ -31,6 +32,9 @@ interface ChatWindowProps {
   attachedFileIds: string[];
   onToggleFileId: (id: string) => void;
   activeProjectId?: string | null;
+  periodicDateRange?: { dateFrom: string; dateTo: string } | null;
+  onPeriodicDateRangeChange?: (range: { dateFrom: string; dateTo: string }) => void;
+  onApplyPeriodicRange?: () => void;
 }
 
 export default function ChatWindow({
@@ -48,6 +52,9 @@ export default function ChatWindow({
   attachedFileIds,
   onToggleFileId,
   activeProjectId,
+  periodicDateRange,
+  onPeriodicDateRangeChange,
+  onApplyPeriodicRange,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -188,6 +195,16 @@ export default function ChatWindow({
 
       {/* Input area */}
       <div className="mx-auto w-full max-w-3xl">
+        {periodicDateRange && onPeriodicDateRangeChange && onApplyPeriodicRange && (
+          <div className="px-4 pb-2">
+            <PeriodicRangePanel
+              dateFrom={periodicDateRange.dateFrom}
+              dateTo={periodicDateRange.dateTo}
+              onPeriodicDateRangeChange={onPeriodicDateRangeChange}
+              onApplyPeriodicRange={onApplyPeriodicRange}
+            />
+          </div>
+        )}
         <ChatInput
           onSend={handleSend}
           disabled={isLoading}

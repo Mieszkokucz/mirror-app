@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SystemPromptResponse, createSystemPrompt, updateSystemPrompt, deleteSystemPrompt } from "@/lib/api";
+import { SystemPromptResponse, SystemPromptType, createSystemPrompt, updateSystemPrompt, deleteSystemPrompt } from "@/lib/api";
 import { USER_ID } from "@/lib/constants";
 
 export type PromptPanelMode = "view" | "edit" | "create";
@@ -18,6 +18,7 @@ export default function PromptPanel({ prompt, mode, onModeChange, onClose, onSav
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [content, setContent] = useState("");
+  const [type, setType] = useState<SystemPromptType>("default");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -29,10 +30,12 @@ export default function PromptPanel({ prompt, mode, onModeChange, onClose, onSav
       setName(prompt.name);
       setDisplayName(prompt.display_name);
       setContent(prompt.content);
+      setType((prompt.type as SystemPromptType) || "default");
     } else if (mode === "create") {
       setName("");
       setDisplayName("");
       setContent("");
+      setType("default");
     }
     setError(null);
     setConfirmDelete(false);
@@ -49,12 +52,14 @@ export default function PromptPanel({ prompt, mode, onModeChange, onClose, onSav
           display_name: displayName.trim(),
           content: content.trim(),
           user_id: USER_ID,
+          type,
         });
       } else if (mode === "edit" && prompt) {
         await updateSystemPrompt(prompt.id, {
           name: name.trim(),
           display_name: displayName.trim(),
           content: content.trim(),
+          type,
         });
       }
       onSaved();
@@ -201,6 +206,18 @@ export default function PromptPanel({ prompt, mode, onModeChange, onClose, onSav
                 placeholder="System prompt content..."
                 className="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm leading-relaxed text-gray-200 outline-none ring-1 ring-gray-800 focus:ring-blue-500 resize-none"
               />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Type</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as SystemPromptType)}
+                className="w-full rounded-lg bg-gray-900 px-3 py-2 text-sm text-gray-200 outline-none ring-1 ring-gray-800 focus:ring-blue-500"
+              >
+                <option value="default">Default</option>
+                <option value="periodic_weekly">Periodic Weekly</option>
+                <option value="periodic_monthly">Periodic Monthly</option>
+              </select>
             </div>
 
             {error && <p className="text-sm text-red-400">{error}</p>}

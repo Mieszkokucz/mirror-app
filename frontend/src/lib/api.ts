@@ -150,12 +150,15 @@ export async function deleteReflection(id: string): Promise<void> {
   }
 }
 
+export type SystemPromptType = "default" | "periodic_weekly" | "periodic_monthly";
+
 export interface SystemPromptResponse {
   id: string;
   user_id: string | null;
   name: string;
   display_name: string;
   content: string;
+  type?: SystemPromptType | null;
   created_at: string;
   updated_at: string;
 }
@@ -165,12 +168,14 @@ export interface SystemPromptCreate {
   display_name: string;
   content: string;
   user_id: string;
+  type?: SystemPromptType;
 }
 
 export interface SystemPromptUpdate {
   name?: string;
   display_name?: string;
   content?: string;
+  type?: SystemPromptType;
 }
 
 export async function fetchSystemPrompts(userId: string, projectId?: string): Promise<SystemPromptResponse[]> {
@@ -331,4 +336,21 @@ export async function exportLibraryFiles(userId: string, projectId?: string | nu
   const filename = filenameMatch ? filenameMatch[1] : "project_export.zip";
 
   triggerBlobDownload(await res.blob(), filename);
+}
+
+export async function fetchAutoContext(
+  promptId: string,
+  userId: string,
+  dateFrom?: string,
+  dateTo?: string
+): Promise<ReflectionResponse[]> {
+  const params = new URLSearchParams({ prompt_id: promptId, user_id: userId });
+  if (dateFrom) params.set("date_from", dateFrom);
+  if (dateTo) params.set("date_to", dateTo);
+  const res = await fetch(`${API_BASE_URL}/reflections/auto-context?${params}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<ReflectionResponse[]>;
 }

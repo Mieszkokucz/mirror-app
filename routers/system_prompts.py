@@ -39,7 +39,11 @@ def list_system_prompts(
     if project_id is not None:
         return (
             db.query(SystemPrompt)
-            .filter(SystemPrompt.project_id == project_id)
+            .filter(
+                (SystemPrompt.project_id == project_id)
+                | ((SystemPrompt.user_id == user_id) & SystemPrompt.project_id.is_(None))
+                | SystemPrompt.user_id.is_(None)
+            )
             .all()
         )
     return (
