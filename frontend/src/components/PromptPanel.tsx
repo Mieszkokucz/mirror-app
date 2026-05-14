@@ -12,9 +12,10 @@ interface PromptPanelProps {
   onModeChange: (mode: PromptPanelMode) => void;
   onClose: () => void;
   onSaved: () => void;
+  activeProjectId?: string | null;
 }
 
-export default function PromptPanel({ prompt, mode, onModeChange, onClose, onSaved }: PromptPanelProps) {
+export default function PromptPanel({ prompt, mode, onModeChange, onClose, onSaved, activeProjectId }: PromptPanelProps) {
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [content, setContent] = useState("");
@@ -53,6 +54,7 @@ export default function PromptPanel({ prompt, mode, onModeChange, onClose, onSav
           content: content.trim(),
           user_id: USER_ID,
           type,
+          project_id: activeProjectId ?? undefined,
         });
       } else if (mode === "edit" && prompt) {
         await updateSystemPrompt(prompt.id, {

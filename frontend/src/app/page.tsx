@@ -299,6 +299,7 @@ export default function Home() {
             onModeChange={setPromptPanelMode}
             onClose={handlePromptPanelClose}
             onSaved={handlePromptSaved}
+            activeProjectId={activeProjectId}
           />
         </div>
       )}

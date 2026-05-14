@@ -169,6 +169,7 @@ export interface SystemPromptCreate {
   content: string;
   user_id: string;
   type?: SystemPromptType;
+  project_id?: string;
 }
 
 export interface SystemPromptUpdate {

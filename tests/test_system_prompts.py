@@ -33,6 +33,36 @@ def test_get_system_prompts_list(client, test_user, test_system_prompt, test_bui
     assert "builtin_prompt" in names
 
 
+def test_get_system_prompts_list_excludes_project_prompts(
+    client, db_session, test_user, test_project, test_builtin_prompt
+):
+    from models.system_prompts import SystemPrompt
+
+    db_session.add(SystemPrompt(
+        user_id=test_user.id,
+        name="global_prompt",
+        display_name="Global Prompt",
+        content="Global.",
+    ))
+    db_session.add(SystemPrompt(
+        user_id=test_user.id,
+        project_id=test_project.id,
+        name="project_prompt",
+        display_name="Project Prompt",
+        content="For project only.",
+    ))
+    db_session.commit()
+
+    response = client.get("/system-prompts/", params={"user_id": str(test_user.id)})
+    assert response.status_code == 200
+    data = response.json()
+    names = {p["name"] for p in data}
+    assert "global_prompt" in names
+    assert "builtin_prompt" in names
+    assert "project_prompt" not in names
+    assert len(data) == 2
+
+
 def test_get_system_prompts_filter_by_project(client, db_session, test_user, test_project, test_builtin_prompt):
     from models.system_prompts import SystemPrompt
 

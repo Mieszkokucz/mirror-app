@@ -12,6 +12,7 @@ class SystemPromptCreate(BaseModel):
     content: str
     user_id: Optional[uuid.UUID]
     type: SystemPromptType = "default"
+    project_id: Optional[uuid.UUID] = None
 
 
 class SystemPromptResponse(BaseModel):

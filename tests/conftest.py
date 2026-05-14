@@ -29,6 +29,7 @@ TestingSessionLocal = sessionmaker(bind=engine)
 
 @pytest.fixture
 def db_session():
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     session = TestingSessionLocal()
     yield session

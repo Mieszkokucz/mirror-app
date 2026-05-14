@@ -21,6 +21,7 @@ def create_system_prompt(prompt: SystemPromptCreate, db: Session = Depends(get_d
         display_name=prompt.display_name,
         content=prompt.content,
         type=prompt.type,
+        project_id=prompt.project_id,
     )
 
     db.add(db_prompt)
@@ -39,16 +40,15 @@ def list_system_prompts(
     if project_id is not None:
         return (
             db.query(SystemPrompt)
-            .filter(
-                (SystemPrompt.project_id == project_id)
-                | ((SystemPrompt.user_id == user_id) & SystemPrompt.project_id.is_(None))
-                | SystemPrompt.user_id.is_(None)
-            )
+            .filter(SystemPrompt.project_id == project_id)
             .all()
         )
     return (
         db.query(SystemPrompt)
-        .filter((SystemPrompt.user_id == user_id) | (SystemPrompt.user_id.is_(None)))
+        .filter(
+            ((SystemPrompt.user_id == user_id) | SystemPrompt.user_id.is_(None))
+            & SystemPrompt.project_id.is_(None)
+        )
         .all()
     )
 
