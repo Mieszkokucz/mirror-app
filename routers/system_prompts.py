@@ -20,6 +20,7 @@ def create_system_prompt(prompt: SystemPromptCreate, db: Session = Depends(get_d
         name=prompt.name,
         display_name=prompt.display_name,
         content=prompt.content,
+        type=prompt.type,
     )
 
     db.add(db_prompt)
