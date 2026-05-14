@@ -3,6 +3,7 @@ from fastapi.responses import PlainTextResponse
 from database import get_db
 from sqlalchemy.orm import Session
 from models.reflections import DailyReflection, PeriodicReflection
+from models.system_prompts import SystemPrompt
 from schemas.reflections import (
     DailyReflectionCreate,
     DailyReflectionResponse,
@@ -16,6 +17,38 @@ from datetime import date as DateType
 from typing import Optional
 
 router = APIRouter()
+
+
+@router.get("/reflections/auto-context", response_model=list[DailyReflectionResponse])
+def get_auto_context(
+    prompt_id: uuid.UUID,
+    user_id: uuid.UUID,
+    date_from: Optional[DateType] = None,
+    date_to: Optional[DateType] = None,
+    db: Session = Depends(get_db),
+):
+    prompt = db.query(SystemPrompt).filter(SystemPrompt.id == prompt_id).first()
+    if prompt is None:
+        raise HTTPException(status_code=404, detail="System prompt not found")
+
+    if prompt.type in ("periodic_weekly", "periodic_monthly"):
+        if date_from is None or date_to is None:
+            raise HTTPException(
+                status_code=422,
+                detail="date_from and date_to are required for periodic prompts",
+            )
+        return (
+            db.query(DailyReflection)
+            .filter(
+                DailyReflection.user_id == user_id,
+                DailyReflection.date >= date_from,
+                DailyReflection.date <= date_to,
+            )
+            .order_by(DailyReflection.date, DailyReflection.reflection_type)
+            .all()
+        )
+
+    return []
 
 
 @router.get("/reflections/export")

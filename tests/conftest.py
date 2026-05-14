@@ -112,6 +112,21 @@ def test_builtin_prompt(db_session):
 
 
 @pytest.fixture
+def test_periodic_weekly_prompt(db_session, test_user):
+    prompt = SystemPrompt(
+        user_id=test_user.id,
+        name="weekly_prompt",
+        display_name="Weekly Prompt",
+        content="Weekly review.",
+        type="periodic_weekly",
+    )
+    db_session.add(prompt)
+    db_session.commit()
+    db_session.refresh(prompt)
+    yield prompt
+
+
+@pytest.fixture
 def test_periodic_reflection(db_session, test_user):
     reflection = PeriodicReflection(
         user_id=test_user.id,

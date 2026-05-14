@@ -365,3 +365,60 @@ def test_delete_periodic_reflection(client, test_periodic_reflection):
 def test_delete_periodic_reflection_not_found(client):
     response = client.delete(f"/periodic-reflections/{uuid.uuid4()}")
     assert response.status_code == 404
+
+
+def test_auto_context_prompt_not_found(client, test_user):
+    response = client.get(
+        "/reflections/auto-context",
+        params={"prompt_id": str(uuid.uuid4()), "user_id": str(test_user.id)},
+    )
+    assert response.status_code == 404
+
+
+def test_auto_context_periodic_weekly_missing_dates(client, test_user, test_periodic_weekly_prompt):
+    response = client.get(
+        "/reflections/auto-context",
+        params={"prompt_id": str(test_periodic_weekly_prompt.id), "user_id": str(test_user.id)},
+    )
+    assert response.status_code == 422
+
+
+def test_auto_context_periodic_weekly_with_date_range(client, test_user, test_periodic_weekly_prompt):
+    for date, content in [
+        ("2026-03-05", "too early"),
+        ("2026-03-15", "in range"),
+        ("2026-03-25", "too late"),
+    ]:
+        client.post(
+            "/reflections/",
+            json={
+                "user_id": str(test_user.id),
+                "reflection_type": "morning",
+                "content": content,
+                "date": date,
+            },
+        )
+
+    response = client.get(
+        "/reflections/auto-context",
+        params={
+            "prompt_id": str(test_periodic_weekly_prompt.id),
+            "user_id": str(test_user.id),
+            "date_from": "2026-03-10",
+            "date_to": "2026-03-20",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["content"] == "in range"
+
+
+def test_auto_context_default_prompt_returns_empty(client, test_user, test_system_prompt):
+    response = client.get(
+        "/reflections/auto-context",
+        params={"prompt_id": str(test_system_prompt.id), "user_id": str(test_user.id)},
+    )
+    assert response.status_code == 200
+    assert response.json() == []
