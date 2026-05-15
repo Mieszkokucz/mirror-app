@@ -1,5 +1,42 @@
 import { ReflectionResponse } from "./api";
 
+export function getISOWeekNumber(date: Date): { year: number; week: number } {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return { year: d.getUTCFullYear(), week };
+}
+
+export function getWeekBounds(year: number, isoWeek: number): { dateFrom: string; dateTo: string } {
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Monday = new Date(jan4.getTime() - (jan4Day - 1) * 86400000);
+  const monday = new Date(week1Monday.getTime() + (isoWeek - 1) * 7 * 86400000);
+  const sunday = new Date(monday.getTime() + 6 * 86400000);
+  return {
+    dateFrom: monday.toISOString().slice(0, 10),
+    dateTo: sunday.toISOString().slice(0, 10),
+  };
+}
+
+export function getMonthBounds(year: number, month: number): { dateFrom: string; dateTo: string } {
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const mm = String(month + 1).padStart(2, "0");
+  return {
+    dateFrom: `${year}-${mm}-01`,
+    dateTo: `${year}-${mm}-${String(lastDay).padStart(2, "0")}`,
+  };
+}
+
+export function formatWeekLabel(dateFrom: string, dateTo: string, weekNum: number): string {
+  const from = new Date(dateFrom + "T00:00:00");
+  const to = new Date(dateTo + "T00:00:00");
+  const monthName = from.toLocaleDateString("en-US", { month: "short" });
+  return `W${weekNum} · ${monthName} ${from.getDate()}–${to.getDate()}`;
+}
+
 export function triggerBlobDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

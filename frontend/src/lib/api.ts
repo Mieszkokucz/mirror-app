@@ -339,6 +339,77 @@ export async function exportLibraryFiles(userId: string, projectId?: string | nu
   triggerBlobDownload(await res.blob(), filename);
 }
 
+export interface PeriodicReflectionResponse {
+  id: string;
+  user_id: string;
+  reflection_type: "weekly" | "monthly";
+  date_from: string;
+  date_to: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PeriodicReflectionCreate {
+  user_id: string;
+  reflection_type: "weekly" | "monthly";
+  content: string;
+  date_from: string;
+  date_to: string;
+}
+
+export interface PeriodicReflectionUpdate {
+  reflection_type?: "weekly" | "monthly";
+  content?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+export async function fetchPeriodicReflections(userId: string): Promise<PeriodicReflectionResponse[]> {
+  const res = await fetch(`${API_BASE_URL}/periodic-reflections/?user_id=${userId}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<PeriodicReflectionResponse[]>;
+}
+
+export async function createPeriodicReflection(data: PeriodicReflectionCreate): Promise<PeriodicReflectionResponse> {
+  const res = await fetch(`${API_BASE_URL}/periodic-reflections/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<PeriodicReflectionResponse>;
+}
+
+export async function updatePeriodicReflection(id: string, data: PeriodicReflectionUpdate): Promise<PeriodicReflectionResponse> {
+  const res = await fetch(`${API_BASE_URL}/periodic-reflections/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<PeriodicReflectionResponse>;
+}
+
+export async function deletePeriodicReflection(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/periodic-reflections/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+}
+
 export async function fetchAutoContext(
   promptId: string,
   userId: string,
