@@ -10,6 +10,7 @@ export interface ChatRequest {
   user_id: string;
   context_reflection_ids?: string[];
   context_file_ids?: string[];
+  context_periodic_reflection_ids?: string[];
   files?: File[];
 }
 
@@ -67,6 +68,7 @@ export async function sendChatMessage(req: ChatRequest): Promise<ChatResponse> {
   if (req.model) form.append("model", req.model);
   req.context_reflection_ids?.forEach((id) => form.append("context_reflection_ids", id));
   req.context_file_ids?.forEach((id) => form.append("context_file_ids", id));
+  req.context_periodic_reflection_ids?.forEach((id) => form.append("context_periodic_reflection_ids", id));
   req.files?.forEach((f) => form.append("files", f));
 
   const res = await fetch(`${API_BASE_URL}/chat/`, {
@@ -425,4 +427,24 @@ export async function fetchAutoContext(
     throw new Error(`API error ${res.status}: ${text}`);
   }
   return res.json() as Promise<ReflectionResponse[]>;
+}
+
+export async function fetchAutoContextPeriodic(
+  userId: string,
+  dateFrom: string,
+  dateTo: string,
+  reflectionType: "weekly" | "monthly"
+): Promise<PeriodicReflectionResponse | null> {
+  const params = new URLSearchParams({
+    user_id: userId,
+    date_from: dateFrom,
+    date_to: dateTo,
+    reflection_type: reflectionType,
+  });
+  const res = await fetch(`${API_BASE_URL}/periodic-reflections/auto-context?${params}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<PeriodicReflectionResponse | null>;
 }

@@ -170,6 +170,26 @@ def delete_daily_reflection(reflection_id: uuid.UUID, db: Session = Depends(get_
     db.commit()
 
 
+@router.get("/periodic-reflections/auto-context", response_model=PeriodicReflectionResponse | None)
+def get_periodic_auto_context(
+    user_id: uuid.UUID,
+    date_from: DateType,
+    date_to: DateType,
+    reflection_type: str,
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(PeriodicReflection)
+        .filter(
+            PeriodicReflection.user_id == user_id,
+            PeriodicReflection.reflection_type == reflection_type,
+            PeriodicReflection.date_from == date_from,
+            PeriodicReflection.date_to == date_to,
+        )
+        .first()
+    )
+
+
 @router.post("/periodic-reflections/")
 def create_periodic_reflection(
     reflection: PeriodicReflectionCreate, db: Session = Depends(get_db)

@@ -22,6 +22,7 @@ async def create_chat(
     model: str = Form("claude-haiku-4-5-20251001"),
     context_reflection_ids: Optional[List[uuid.UUID]] = Form(None),
     context_file_ids: Optional[List[uuid.UUID]] = Form(None),
+    context_periodic_reflection_ids: Optional[List[uuid.UUID]] = Form(None),
     files: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
 ):
@@ -35,6 +36,7 @@ async def create_chat(
         model,
         context_reflection_ids,
         context_file_ids,
+        context_periodic_reflection_ids,
         files,
     )
     return result

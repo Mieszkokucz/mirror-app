@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, KeyboardEvent } from "react";
-import { ReflectionResponse, FileResponse } from "@/lib/api";
-import { groupReflectionsByDate, DateGroup } from "@/lib/utils";
+import { ReflectionResponse, FileResponse, PeriodicReflectionResponse } from "@/lib/api";
+import { groupReflectionsByDate, DateGroup, getISOWeekNumber, formatWeekLabel } from "@/lib/utils";
 import MentionDropdown from "./MentionDropdown";
 
 interface SelectOption {
@@ -26,6 +26,10 @@ interface ChatInputProps {
   libraryFiles: FileResponse[];
   attachedFileIds: string[];
   onToggleFileId: (id: string) => void;
+  attachedPeriodicReflections: PeriodicReflectionResponse[];
+  onRemovePeriodicReflection: (id: string) => void;
+  periodicReflections: PeriodicReflectionResponse[];
+  onTogglePeriodicReflection: (id: string) => void;
 }
 
 function groupByDate(reflections: ReflectionResponse[]): Map<string, ReflectionResponse[]> {
@@ -61,7 +65,16 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function ChatInput({ onSend, disabled, models, selectedModel, onModelChange, prompts, selectedPrompt, onPromptChange, attachedReflections, onRemoveAttachmentsByDate, allReflections, onAttachByDate, libraryFiles, attachedFileIds, onToggleFileId }: ChatInputProps) {
+function formatPeriodicChipLabel(pr: PeriodicReflectionResponse): string {
+  if (pr.reflection_type === "monthly") {
+    const d = new Date(pr.date_from + "T00:00:00");
+    return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  }
+  const { week } = getISOWeekNumber(new Date(pr.date_from + "T00:00:00"));
+  return `W${week} · ${formatWeekLabel(pr.date_from, pr.date_to, week)}`;
+}
+
+export default function ChatInput({ onSend, disabled, models, selectedModel, onModelChange, prompts, selectedPrompt, onPromptChange, attachedReflections, onRemoveAttachmentsByDate, allReflections, onAttachByDate, libraryFiles, attachedFileIds, onToggleFileId, attachedPeriodicReflections, onRemovePeriodicReflection, periodicReflections, onTogglePeriodicReflection }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -70,7 +83,7 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mentionStartPos, setMentionStartPos] = useState(0);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
-  const [plusSubMenu, setPlusSubMenu] = useState<"prompts" | "notes" | "library" | null>(null);
+  const [plusSubMenu, setPlusSubMenu] = useState<"prompts" | "notes" | "library" | "periodic" | null>(null);
   const plusMenuRef = useRef<HTMLDivElement>(null);
 
   const dateGroups: DateGroup[] = groupReflectionsByDate(allReflections);
@@ -249,7 +262,11 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
   }
 
   const attachmentsByDate = groupByDate(attachedReflections);
-  const hasChips = attachedReflections.length > 0 || attachedFileIds.length > 0 || pendingFiles.length > 0;
+  const hasChips = attachedReflections.length > 0 || attachedFileIds.length > 0 || pendingFiles.length > 0 || attachedPeriodicReflections.length > 0;
+  const sortedPeriodic = [...periodicReflections].sort((a, b) => {
+    if (a.reflection_type !== b.reflection_type) return a.reflection_type === "monthly" ? -1 : 1;
+    return b.date_from.localeCompare(a.date_from);
+  });
 
   return (
     <div className="border-t border-gray-800 bg-gray-950 px-4 py-3">
@@ -278,6 +295,25 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
                 onClick={() => onRemoveAttachmentsByDate(date)}
                 className="ml-0.5 rounded text-gray-500 hover:text-gray-300"
                 aria-label={`Remove ${date} reflections`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3">
+                  <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+                </svg>
+              </button>
+            </span>
+          ))}
+
+          {/* Periodic reflection chips */}
+          {attachedPeriodicReflections.map((pr) => (
+            <span
+              key={pr.id}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-purple-900/50 bg-purple-950/30 px-2.5 py-1 text-xs text-purple-300"
+            >
+              <span>{formatPeriodicChipLabel(pr)}</span>
+              <button
+                onClick={() => onRemovePeriodicReflection(pr.id)}
+                className="ml-0.5 rounded text-purple-500 hover:text-purple-200"
+                aria-label={`Remove ${pr.reflection_type} reflection`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3">
                   <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
@@ -387,6 +423,17 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
               </button>
+              <button
+                onMouseEnter={() => setPlusSubMenu("periodic")}
+                className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
+                  plusSubMenu === "periodic" ? "bg-gray-800 text-gray-100" : "text-gray-300 hover:bg-gray-800/60"
+                }`}
+              >
+                <span>Periodic</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-3 w-3 text-gray-500">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
             </div>
 
             {/* Sub-list */}
@@ -460,6 +507,40 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
                         </button>
                       );
                     })
+                  ))}
+                {plusSubMenu === "periodic" &&
+                  (sortedPeriodic.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-gray-600">No periodic reflections yet.</p>
+                  ) : (
+                    sortedPeriodic.map((pr) => {
+                        const isAttached = attachedPeriodicReflections.some((r) => r.id === pr.id);
+                        return (
+                          <button
+                            key={pr.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              onTogglePeriodicReflection(pr.id);
+                            }}
+                            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-gray-800/60 ${
+                              isAttached ? "text-purple-300" : "text-gray-300"
+                            }`}
+                          >
+                            <div className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${
+                              isAttached ? "border-purple-500 bg-purple-500" : "border-gray-600"
+                            }`}>
+                              {isAttached && (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3 text-white">
+                                  <path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm">{formatPeriodicChipLabel(pr)}</p>
+                              <p className="text-xs text-gray-500">{pr.reflection_type}</p>
+                            </div>
+                          </button>
+                        );
+                      })
                   ))}
               </div>
             )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SessionResponse, SystemPromptResponse, ReflectionResponse, FileResponse, ProjectResponse, fetchSessions, fetchSystemPrompts, fetchReflections, fetchLibraryFiles, fetchProjects, createProject, deleteProject, fetchAutoContext } from "@/lib/api";
+import { SessionResponse, SystemPromptResponse, ReflectionResponse, FileResponse, ProjectResponse, PeriodicReflectionResponse, fetchSessions, fetchSystemPrompts, fetchReflections, fetchLibraryFiles, fetchProjects, fetchPeriodicReflections, createProject, deleteProject, fetchAutoContext, fetchAutoContextPeriodic } from "@/lib/api";
 import { USER_ID, FREE_CHAT_ID } from "@/lib/constants";
 import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
@@ -19,6 +19,7 @@ export default function Home() {
   const [prompts, setPrompts] = useState<SystemPromptResponse[]>([]);
   const [reflections, setReflections] = useState<ReflectionResponse[]>([]);
   const [libraryFiles, setLibraryFiles] = useState<FileResponse[]>([]);
+  const [periodicReflections, setPeriodicReflections] = useState<PeriodicReflectionResponse[]>([]);
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const isFirstRender = useRef(true);
@@ -27,6 +28,7 @@ export default function Home() {
   const [chatPromptValue, setChatPromptValue] = useState(FREE_CHAT_ID);
   const [attachedReflectionIds, setAttachedReflectionIds] = useState<string[]>([]);
   const [attachedFileIds, setAttachedFileIds] = useState<string[]>([]);
+  const [attachedPeriodicReflections, setAttachedPeriodicReflections] = useState<PeriodicReflectionResponse[]>([]);
   const [periodicDateRange, setPeriodicDateRange] = useState<{ dateFrom: string; dateTo: string } | null>(null);
 
   // Prompt panel state
@@ -50,6 +52,10 @@ export default function Home() {
     fetchLibraryFiles(USER_ID, activeProjectId ?? undefined).then(setLibraryFiles).catch(() => {});
   }
 
+  function reloadPeriodicReflections() {
+    fetchPeriodicReflections(USER_ID).then(setPeriodicReflections).catch(() => {});
+  }
+
   function reloadProjects() {
     fetchProjects(USER_ID).then(setProjects).catch(() => {});
   }
@@ -60,6 +66,7 @@ export default function Home() {
     reloadReflections();
     reloadLibrary();
     reloadProjects();
+    reloadPeriodicReflections();
   }, []);
 
   useEffect(() => {
@@ -116,6 +123,7 @@ export default function Home() {
     setChatPromptValue(promptId);
     setAttachedReflectionIds([]);
     setAttachedFileIds([]);
+    setAttachedPeriodicReflections([]);
     setPeriodicDateRange(null);
     setActiveView("chat");
     setIsSidebarOpen(false);
@@ -123,11 +131,34 @@ export default function Home() {
 
   async function handleApplyPeriodicRange() {
     if (!periodicDateRange || chatPromptValue === FREE_CHAT_ID) return;
+    const prompt = prompts.find((p) => p.id === chatPromptValue);
     const range = periodicDateRange;
     setPeriodicDateRange(null);
-    const results = await fetchAutoContext(chatPromptValue, USER_ID, range.dateFrom, range.dateTo);
-    const ids = results.map((r) => r.id);
-    setAttachedReflectionIds((prev) => [...new Set([...prev, ...ids])]);
+
+    const reflectionType =
+      prompt?.type === "periodic_weekly" ? "weekly"
+      : prompt?.type === "periodic_monthly" ? "monthly"
+      : null;
+
+    try {
+      const [dailyResults, periodicResult] = await Promise.all([
+        fetchAutoContext(chatPromptValue, USER_ID, range.dateFrom, range.dateTo),
+        reflectionType
+          ? fetchAutoContextPeriodic(USER_ID, range.dateFrom, range.dateTo, reflectionType)
+          : Promise.resolve(null),
+      ]);
+
+      const dailyIds = dailyResults.map((r) => r.id);
+      setAttachedReflectionIds((prev) => [...new Set([...prev, ...dailyIds])]);
+
+      if (periodicResult) {
+        setAttachedPeriodicReflections((prev) =>
+          prev.find((r) => r.id === periodicResult.id) ? prev : [...prev, periodicResult]
+        );
+      }
+    } catch (err) {
+      console.error("Failed to apply periodic range:", err);
+    }
   }
 
   function handleSelectSession(sessionId: string) {
@@ -168,6 +199,19 @@ export default function Home() {
   function handleClearAttachments() {
     setAttachedReflectionIds([]);
     setAttachedFileIds([]);
+    setAttachedPeriodicReflections([]);
+  }
+
+  function handleRemovePeriodicReflection(id: string) {
+    setAttachedPeriodicReflections((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  function handleTogglePeriodicReflection(id: string) {
+    const reflection = periodicReflections.find((r) => r.id === id);
+    if (!reflection) return;
+    setAttachedPeriodicReflections((prev) =>
+      prev.find((r) => r.id === id) ? prev.filter((r) => r.id !== id) : [...prev, reflection]
+    );
   }
 
   function handleToggleFileId(id: string) {
@@ -368,6 +412,10 @@ export default function Home() {
               promptValue={chatPromptValue}
               onPromptChange={setChatPromptValue}
               attachedReflectionIds={attachedReflectionIds}
+              attachedPeriodicReflections={attachedPeriodicReflections}
+              onRemovePeriodicReflection={handleRemovePeriodicReflection}
+              periodicReflections={periodicReflections}
+              onTogglePeriodicReflection={handleTogglePeriodicReflection}
               onAttachByDate={handleAttachByDate}
               onRemoveAttachmentsByDate={handleRemoveAttachmentsByDate}
               onClearAttachments={handleClearAttachments}

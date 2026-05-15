@@ -3,12 +3,16 @@ import os
 from fastapi import HTTPException
 from models.chat import Session as ChatSession, Message, MessageContext
 from models.system_prompts import SystemPrompt
-from models.reflections import DailyReflection
+from models.reflections import DailyReflection, PeriodicReflection
 from models.files import File
 from services.llm_gateway import send_to_llm
 from services.files import upload_message_attachment
 
 _TEXT_EXTENSIONS = {".txt", ".md", ".markdown"}
+
+
+def _periodic_label(pr) -> str:
+    return f"[{pr.reflection_type.title()} Reflection: {pr.date_from} – {pr.date_to}]"
 
 
 def _is_text_file(filename: str, mime_type: str) -> bool:
@@ -17,7 +21,7 @@ def _is_text_file(filename: str, mime_type: str) -> bool:
 
 
 async def handle_chat(
-    db, user_id, message, session_id, prompt_id, project_id, model, context_reflection_ids, context_file_ids, files
+    db, user_id, message, session_id, prompt_id, project_id, model, context_reflection_ids, context_file_ids, context_periodic_reflection_ids, files
 ):
     if session_id is None:
         db_session = ChatSession(user_id=user_id, project_id=project_id)
@@ -49,6 +53,23 @@ async def handle_chat(
         system_prompt += "\n\n---\nThe user has attached the following reflections:\n\n"
         for reflection in reflection_list:
             system_prompt += f"[Reflection: {reflection.reflection_type}, {reflection.date}]\n{reflection.content}\n\n"
+
+    # add attached periodic reflections (weekly/monthly summaries) to system prompt
+    if context_periodic_reflection_ids:
+        periodic_list = (
+            db.query(PeriodicReflection)
+            .filter(PeriodicReflection.id.in_(context_periodic_reflection_ids))
+            .all()
+        )
+        if len(periodic_list) < len(context_periodic_reflection_ids):
+            raise HTTPException(
+                status_code=404, detail="One or more periodic reflection IDs not found"
+            )
+
+        system_prompt += "\n\n---\nThe user has attached the following periodic reflections:\n\n"
+        for pr in periodic_list:
+            label = _periodic_label(pr)
+            system_prompt += f"{label}\n{pr.content}\n\n"
 
     # add attached files to system prompt
     if context_file_ids:
@@ -97,22 +118,29 @@ async def handle_chat(
     # save message_context rows
     if context_reflection_ids:
         for context_reflection_id in context_reflection_ids:
-            db_message_context = MessageContext(
+            db.add(MessageContext(
                 message_id=db_message.id,
                 context_type="reflection",
                 context_id=context_reflection_id,
-            )
-            db.add(db_message_context)
-        db.commit()
+            ))
 
     if context_file_ids:
         for context_file_id in context_file_ids:
-            db_message_context = MessageContext(
+            db.add(MessageContext(
                 message_id=db_message.id,
                 context_type="file",
                 context_id=context_file_id,
-            )
-            db.add(db_message_context)
+            ))
+
+    if context_periodic_reflection_ids:
+        for periodic_id in context_periodic_reflection_ids:
+            db.add(MessageContext(
+                message_id=db_message.id,
+                context_type="periodic_reflection",
+                context_id=periodic_id,
+            ))
+
+    if context_reflection_ids or context_file_ids or context_periodic_reflection_ids:
         db.commit()
 
     # read whole session from db
@@ -131,6 +159,7 @@ async def handle_chat(
     )
     already_reflection_ids = set(context_reflection_ids or [])
     already_file_ids = set(context_file_ids or [])
+    already_periodic_ids = set(context_periodic_reflection_ids or [])
     historic_reflection_ids = {
         ctx.context_id for ctx in past_contexts
         if ctx.context_type == "reflection" and ctx.context_id not in already_reflection_ids
@@ -138,6 +167,10 @@ async def handle_chat(
     historic_file_ids = {
         ctx.context_id for ctx in past_contexts
         if ctx.context_type == "file" and ctx.context_id not in already_file_ids
+    }
+    historic_periodic_ids = {
+        ctx.context_id for ctx in past_contexts
+        if ctx.context_type == "periodic_reflection" and ctx.context_id not in already_periodic_ids
     }
     if historic_reflection_ids:
         historic_reflections = (
@@ -165,6 +198,17 @@ async def handle_chat(
                     status_code=500, detail=f"File '{f.filename}' could not be read from disk"
                 )
             system_prompt += f"[File: {f.filename}]\n{content}\n\n"
+
+    if historic_periodic_ids:
+        historic_periodics = (
+            db.query(PeriodicReflection)
+            .filter(PeriodicReflection.id.in_(historic_periodic_ids))
+            .all()
+        )
+        system_prompt += "\n\n---\nPreviously attached periodic reflections (from earlier in this conversation):\n\n"
+        for pr in historic_periodics:
+            label = _periodic_label(pr)
+            system_prompt += f"{label}\n{pr.content}\n\n"
 
     message_to_llm = list(
         {"role": msg.role, "content": msg.content} for msg in session_hist

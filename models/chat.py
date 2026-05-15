@@ -59,7 +59,7 @@ class MessageContext(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "context_type IN ('reflection', 'file')",
+            "context_type IN ('reflection', 'file', 'periodic_reflection')",
             name="ck__message_context__context_type",
         ),
         PrimaryKeyConstraint("message_id", "context_type", "context_id"),

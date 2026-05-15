@@ -17,6 +17,7 @@ class ChatRequest(BaseModel):
     ] = "claude-haiku-4-5-20251001"
     context_reflection_ids: Optional[List[uuid.UUID]] = None
     context_file_ids: Optional[List[uuid.UUID]] = None
+    context_periodic_reflection_ids: Optional[List[uuid.UUID]] = None
 
 
 class ChatResponse(BaseModel):

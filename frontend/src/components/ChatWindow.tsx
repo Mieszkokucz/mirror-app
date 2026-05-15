@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sendChatMessage, fetchSessionMessages, SystemPromptResponse, ReflectionResponse, FileResponse } from "@/lib/api";
+import { sendChatMessage, fetchSessionMessages, SystemPromptResponse, ReflectionResponse, FileResponse, PeriodicReflectionResponse } from "@/lib/api";
 import { MODELS, DEFAULT_MODEL, FREE_CHAT_ID, FREE_CHAT_META, USER_ID } from "@/lib/constants";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
@@ -25,6 +25,10 @@ interface ChatWindowProps {
   promptValue: string;
   onPromptChange: (value: string) => void;
   attachedReflectionIds: string[];
+  attachedPeriodicReflections: PeriodicReflectionResponse[];
+  onRemovePeriodicReflection: (id: string) => void;
+  periodicReflections: PeriodicReflectionResponse[];
+  onTogglePeriodicReflection: (id: string) => void;
   onAttachByDate: (date: string) => void;
   onRemoveAttachmentsByDate: (date: string) => void;
   onClearAttachments: () => void;
@@ -45,6 +49,10 @@ export default function ChatWindow({
   promptValue,
   onPromptChange,
   attachedReflectionIds,
+  attachedPeriodicReflections,
+  onRemovePeriodicReflection,
+  periodicReflections,
+  onTogglePeriodicReflection,
   onAttachByDate,
   onRemoveAttachmentsByDate,
   onClearAttachments,
@@ -125,6 +133,7 @@ export default function ChatWindow({
         user_id: USER_ID,
         context_reflection_ids: attachedReflectionIds.length > 0 ? attachedReflectionIds : undefined,
         context_file_ids: attachedFileIds.length > 0 ? attachedFileIds : undefined,
+        context_periodic_reflection_ids: attachedPeriodicReflections.length > 0 ? attachedPeriodicReflections.map((r) => r.id) : undefined,
         files: files.length > 0 ? files : undefined,
       });
       onClearAttachments();
@@ -221,6 +230,10 @@ export default function ChatWindow({
           libraryFiles={libraryFiles}
           attachedFileIds={attachedFileIds}
           onToggleFileId={onToggleFileId}
+          attachedPeriodicReflections={attachedPeriodicReflections}
+          onRemovePeriodicReflection={onRemovePeriodicReflection}
+          periodicReflections={periodicReflections}
+          onTogglePeriodicReflection={onTogglePeriodicReflection}
         />
       </div>
     </div>
