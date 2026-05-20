@@ -75,7 +75,7 @@ class PeriodicReflection(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "reflection_type IN ('weekly', 'monthly')",
+            "reflection_type IN ('weekly', 'monthly', 'weekly_plan', 'monthly_plan')",
             name="ck__periodic_reflection__reflection_type",
         ),
         UniqueConstraint(

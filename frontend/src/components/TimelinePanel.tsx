@@ -7,8 +7,10 @@ export interface TimelineGroup {
   monthKey: string;
   monthLabel: string;
   monthly: PeriodicReflectionResponse | null;
+  monthlyPlan: PeriodicReflectionResponse | null;
   monthlyPlaceholder: { dateFrom: string; dateTo: string };
   weeks: PeriodicReflectionResponse[];
+  weeklyPlans: PeriodicReflectionResponse[];
 }
 
 interface TimelinePanelProps {
@@ -74,6 +76,24 @@ export default function TimelinePanel({ groups, activePeriodId, onSelectEntry, o
               </button>
             )}
 
+            {/* Monthly Plan card (only when exists) */}
+            {group.monthlyPlan && (
+              <button
+                onClick={() => onSelectEntry(group.monthlyPlan!)}
+                className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${
+                  activePeriodId === group.monthlyPlan.id
+                    ? "border-blue-500 bg-gray-800/60"
+                    : "border-gray-800 bg-gray-900 hover:border-gray-700"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-block rounded-full bg-purple-900/40 px-2 py-0.5 text-xs text-purple-300">Monthly Plan</span>
+                  <span className="text-xs text-gray-500">{group.monthLabel}</span>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">{previewText(group.monthlyPlan.content)}</p>
+              </button>
+            )}
+
             {/* Weekly cards */}
             {group.weeks.map((r) => (
               <button
@@ -87,6 +107,25 @@ export default function TimelinePanel({ groups, activePeriodId, onSelectEntry, o
               >
                 <div className="flex items-center gap-2 mb-1">
                   <span className="inline-block rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400">Weekly</span>
+                  <span className="text-xs text-gray-500">{weekLabel(r)}</span>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">{previewText(r.content)}</p>
+              </button>
+            ))}
+
+            {/* Weekly Plan cards */}
+            {group.weeklyPlans.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => onSelectEntry(r)}
+                className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${
+                  activePeriodId === r.id
+                    ? "border-blue-500 bg-gray-800/60"
+                    : "border-gray-800 bg-gray-900 hover:border-gray-700"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-block rounded-full bg-purple-900/40 px-2 py-0.5 text-xs text-purple-300">Weekly Plan</span>
                   <span className="text-xs text-gray-500">{weekLabel(r)}</span>
                 </div>
                 <p className="text-xs text-gray-500 leading-relaxed">{previewText(r.content)}</p>

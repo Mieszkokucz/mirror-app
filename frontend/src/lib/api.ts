@@ -341,10 +341,12 @@ export async function exportLibraryFiles(userId: string, projectId?: string | nu
   triggerBlobDownload(await res.blob(), filename);
 }
 
+export type PeriodicReflectionType = "weekly" | "monthly" | "weekly_plan" | "monthly_plan";
+
 export interface PeriodicReflectionResponse {
   id: string;
   user_id: string;
-  reflection_type: "weekly" | "monthly";
+  reflection_type: PeriodicReflectionType;
   date_from: string;
   date_to: string;
   content: string;
@@ -354,14 +356,14 @@ export interface PeriodicReflectionResponse {
 
 export interface PeriodicReflectionCreate {
   user_id: string;
-  reflection_type: "weekly" | "monthly";
+  reflection_type: PeriodicReflectionType;
   content: string;
   date_from: string;
   date_to: string;
 }
 
 export interface PeriodicReflectionUpdate {
-  reflection_type?: "weekly" | "monthly";
+  reflection_type?: PeriodicReflectionType;
   content?: string;
   date_from?: string;
   date_to?: string;
@@ -433,7 +435,7 @@ export async function fetchAutoContextPeriodic(
   userId: string,
   dateFrom: string,
   dateTo: string,
-  reflectionType: "weekly" | "monthly"
+  reflectionType: PeriodicReflectionType
 ): Promise<PeriodicReflectionResponse | null> {
   const params = new URLSearchParams({
     user_id: userId,

@@ -1,28 +1,32 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { PeriodicReflectionResponse } from "@/lib/api";
+import { PeriodicReflectionResponse, PeriodicReflectionType } from "@/lib/api";
 import { getISOWeekNumber, getWeekBounds, getMonthBounds, formatWeekLabel } from "@/lib/utils";
 
 interface NewPeriodicDropdownProps {
   periodicReflections: PeriodicReflectionResponse[];
-  onSelect: (type: "weekly" | "monthly", dateFrom: string, dateTo: string, existingId?: string) => void;
+  onSelect: (type: PeriodicReflectionType, dateFrom: string, dateTo: string, existingId?: string) => void;
   onClose: () => void;
 }
 
 function findExisting(
   reflections: PeriodicReflectionResponse[],
-  type: "weekly" | "monthly",
+  type: PeriodicReflectionType,
   dateFrom: string,
   dateTo: string,
 ): PeriodicReflectionResponse | undefined {
   return reflections.find((r) => r.reflection_type === type && r.date_from === dateFrom && r.date_to === dateTo);
 }
 
+function isWeekBased(type: PeriodicReflectionType): boolean {
+  return type === "weekly" || type === "weekly_plan";
+}
+
 export default function NewPeriodicDropdown({ periodicReflections, onSelect, onClose }: NewPeriodicDropdownProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [showOther, setShowOther] = useState(false);
-  const [otherType, setOtherType] = useState<"weekly" | "monthly">("weekly");
+  const [otherType, setOtherType] = useState<PeriodicReflectionType>("weekly");
   const [otherWeekInput, setOtherWeekInput] = useState("");
   const [otherMonthInput, setOtherMonthInput] = useState("");
 
@@ -41,22 +45,29 @@ export default function NewPeriodicDropdown({ periodicReflections, onSelect, onC
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose]);
 
-  function handleSelect(type: "weekly" | "monthly", dateFrom: string, dateTo: string) {
+  function handleSelect(type: PeriodicReflectionType, dateFrom: string, dateTo: string) {
     const existing = findExisting(periodicReflections, type, dateFrom, dateTo);
     onSelect(type, dateFrom, dateTo, existing?.id);
   }
 
   function handleOtherGo() {
-    if (otherType === "weekly" && otherWeekInput) {
+    if (isWeekBased(otherType) && otherWeekInput) {
       const [y, , w] = otherWeekInput.split(/[-W]/).map(Number);
       const bounds = getWeekBounds(y, w);
-      handleSelect("weekly", bounds.dateFrom, bounds.dateTo);
-    } else if (otherType === "monthly" && otherMonthInput) {
+      handleSelect(otherType, bounds.dateFrom, bounds.dateTo);
+    } else if (!isWeekBased(otherType) && otherMonthInput) {
       const [y, m] = otherMonthInput.split("-").map(Number);
       const bounds = getMonthBounds(y, m - 1);
-      handleSelect("monthly", bounds.dateFrom, bounds.dateTo);
+      handleSelect(otherType, bounds.dateFrom, bounds.dateTo);
     }
   }
+
+  const typeOptions: { value: PeriodicReflectionType; label: string }[] = [
+    { value: "weekly", label: "Weekly" },
+    { value: "weekly_plan", label: "Weekly Plan" },
+    { value: "monthly", label: "Monthly" },
+    { value: "monthly_plan", label: "Monthly Plan" },
+  ];
 
   return (
     <div
@@ -73,10 +84,24 @@ export default function NewPeriodicDropdown({ periodicReflections, onSelect, onC
             <span className="text-xs text-gray-500">{curWeekLabel}</span>
           </button>
           <button
+            onClick={() => handleSelect("weekly_plan", curWeekBounds.dateFrom, curWeekBounds.dateTo)}
+            className="flex w-[calc(100%-8px)] items-center justify-between rounded-lg mx-1 px-3 py-2.5 text-left hover:bg-gray-800 transition"
+          >
+            <span className="text-sm font-medium text-purple-300">Weekly Plan</span>
+            <span className="text-xs text-gray-500">{curWeekLabel}</span>
+          </button>
+          <button
             onClick={() => handleSelect("monthly", curMonthBounds.dateFrom, curMonthBounds.dateTo)}
             className="flex w-[calc(100%-8px)] items-center justify-between rounded-lg mx-1 px-3 py-2.5 text-left hover:bg-gray-800 transition"
           >
             <span className="text-sm font-medium text-gray-200">Monthly</span>
+            <span className="text-xs text-gray-500">{curMonthLabel}</span>
+          </button>
+          <button
+            onClick={() => handleSelect("monthly_plan", curMonthBounds.dateFrom, curMonthBounds.dateTo)}
+            className="flex w-[calc(100%-8px)] items-center justify-between rounded-lg mx-1 px-3 py-2.5 text-left hover:bg-gray-800 transition"
+          >
+            <span className="text-sm font-medium text-purple-300">Monthly Plan</span>
             <span className="text-xs text-gray-500">{curMonthLabel}</span>
           </button>
           <div className="my-1 border-t border-gray-800" />
@@ -99,22 +124,27 @@ export default function NewPeriodicDropdown({ periodicReflections, onSelect, onC
             Other period
           </button>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => setOtherType("weekly")}
-              className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${otherType === "weekly" ? "bg-gray-700 text-gray-100" : "text-gray-500 hover:text-gray-300"}`}
-            >
-              Weekly
-            </button>
-            <button
-              onClick={() => setOtherType("monthly")}
-              className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${otherType === "monthly" ? "bg-gray-700 text-gray-100" : "text-gray-500 hover:text-gray-300"}`}
-            >
-              Monthly
-            </button>
+          <div className="grid grid-cols-2 gap-2">
+            {typeOptions.map((opt) => {
+              const isPlan = opt.value === "weekly_plan" || opt.value === "monthly_plan";
+              const isActive = otherType === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => setOtherType(opt.value)}
+                  className={`rounded-lg py-1.5 text-xs font-medium transition ${
+                    isActive
+                      ? isPlan ? "bg-purple-900/40 text-purple-200" : "bg-gray-700 text-gray-100"
+                      : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
 
-          {otherType === "weekly" ? (
+          {isWeekBased(otherType) ? (
             <div>
               <label className="mb-1 block text-xs text-gray-500">Week</label>
               <input
@@ -138,7 +168,7 @@ export default function NewPeriodicDropdown({ periodicReflections, onSelect, onC
 
           <button
             onClick={handleOtherGo}
-            disabled={otherType === "weekly" ? !otherWeekInput : !otherMonthInput}
+            disabled={isWeekBased(otherType) ? !otherWeekInput : !otherMonthInput}
             className="w-full rounded-lg bg-blue-600 py-1.5 text-sm font-medium text-white hover:bg-blue-500 transition disabled:opacity-40"
           >
             Go

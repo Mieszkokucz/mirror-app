@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   fetchReflections, createReflection, updateReflection, deleteReflection, exportReflections,
   fetchPeriodicReflections, createPeriodicReflection, updatePeriodicReflection, deletePeriodicReflection,
-  ReflectionResponse, PeriodicReflectionResponse,
+  ReflectionResponse, PeriodicReflectionResponse, PeriodicReflectionType,
 } from "@/lib/api";
 import { USER_ID } from "@/lib/constants";
 import Calendar from "./Calendar";
@@ -16,7 +16,7 @@ type ViewMode = "calendar" | "timeline";
 type PanelSelection =
   | { kind: "none" }
   | { kind: "periodic"; id: string }
-  | { kind: "new-periodic"; reflectionType: "weekly" | "monthly"; dateFrom: string; dateTo: string };
+  | { kind: "new-periodic"; reflectionType: PeriodicReflectionType; dateFrom: string; dateTo: string };
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -30,6 +30,8 @@ function typeLabel(reflectionType: string): string {
     case "evening": return "Evening";
     case "weekly": return "Weekly";
     case "monthly": return "Monthly";
+    case "weekly_plan": return "Weekly Plan";
+    case "monthly_plan": return "Monthly Plan";
     default: return reflectionType;
   }
 }
@@ -40,12 +42,14 @@ function todayStr(): string {
 }
 
 function periodicHeaderLabel(r: PeriodicReflectionResponse): string {
-  if (r.reflection_type === "monthly") {
-    const d = new Date(r.date_from + "T00:00:00");
-    return `Monthly Reflection · ${d.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
+  const d = new Date(r.date_from + "T00:00:00");
+  if (r.reflection_type === "monthly" || r.reflection_type === "monthly_plan") {
+    const prefix = r.reflection_type === "monthly_plan" ? "Monthly Plan" : "Monthly Reflection";
+    return `${prefix} · ${d.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
   }
-  const { week } = getISOWeekNumber(new Date(r.date_from + "T00:00:00"));
-  return `Weekly Reflection · ${formatWeekLabel(r.date_from, r.date_to, week)}`;
+  const prefix = r.reflection_type === "weekly_plan" ? "Weekly Plan" : "Weekly Reflection";
+  const { week } = getISOWeekNumber(d);
+  return `${prefix} · ${formatWeekLabel(r.date_from, r.date_to, week)}`;
 }
 
 export default function ReflectionsView() {
@@ -109,19 +113,26 @@ export default function ReflectionsView() {
   }, []);
 
   const timelineGroups = useMemo<TimelineGroup[]>(() => {
-    const map = new Map<string, { monthly: PeriodicReflectionResponse | null; weeks: PeriodicReflectionResponse[] }>();
+    const map = new Map<string, {
+      monthly: PeriodicReflectionResponse | null;
+      monthlyPlan: PeriodicReflectionResponse | null;
+      weeks: PeriodicReflectionResponse[];
+      weeklyPlans: PeriodicReflectionResponse[];
+    }>();
 
     for (const r of periodicReflections) {
       const monthKey = r.date_from.slice(0, 7);
-      if (!map.has(monthKey)) map.set(monthKey, { monthly: null, weeks: [] });
+      if (!map.has(monthKey)) map.set(monthKey, { monthly: null, monthlyPlan: null, weeks: [], weeklyPlans: [] });
       const group = map.get(monthKey)!;
       if (r.reflection_type === "monthly") group.monthly = r;
+      else if (r.reflection_type === "monthly_plan") group.monthlyPlan = r;
+      else if (r.reflection_type === "weekly_plan") group.weeklyPlans.push(r);
       else group.weeks.push(r);
     }
 
     return [...map.entries()]
       .sort(([a], [b]) => b.localeCompare(a))
-      .map(([monthKey, { monthly, weeks }]) => {
+      .map(([monthKey, { monthly, monthlyPlan, weeks, weeklyPlans }]) => {
         const [y, m] = monthKey.split("-").map(Number);
         const monthLabel = new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
         const monthBounds = getMonthBounds(y, m - 1);
@@ -129,8 +140,10 @@ export default function ReflectionsView() {
           monthKey,
           monthLabel,
           monthly,
+          monthlyPlan,
           monthlyPlaceholder: monthBounds,
           weeks: weeks.sort((a, b) => b.date_from.localeCompare(a.date_from)),
+          weeklyPlans: weeklyPlans.sort((a, b) => b.date_from.localeCompare(a.date_from)),
         };
       });
   }, [periodicReflections]);
@@ -160,7 +173,9 @@ export default function ReflectionsView() {
           e.preventDefault();
           const allEntries = timelineGroups.flatMap((g) => [
             ...(g.monthly ? [g.monthly] : []),
+            ...(g.monthlyPlan ? [g.monthlyPlan] : []),
             ...g.weeks,
+            ...g.weeklyPlans,
           ]);
           if (allEntries.length === 0) return;
           const curId = panelSelection.kind === "periodic" ? panelSelection.id : null;
@@ -253,7 +268,7 @@ export default function ReflectionsView() {
     }
   }
 
-  async function handlePeriodicSave(reflectionType: "weekly" | "monthly", dateFrom: string, dateTo: string, content: string) {
+  async function handlePeriodicSave(reflectionType: PeriodicReflectionType, dateFrom: string, dateTo: string, content: string) {
     if (!content.trim()) return;
     setIsSaving(true);
     setSaveError(null);
@@ -311,6 +326,8 @@ export default function ReflectionsView() {
 
   const weeklyCount = periodicReflections.filter((r) => r.reflection_type === "weekly").length;
   const monthlyCount = periodicReflections.filter((r) => r.reflection_type === "monthly").length;
+  const weeklyPlanCount = periodicReflections.filter((r) => r.reflection_type === "weekly_plan").length;
+  const monthlyPlanCount = periodicReflections.filter((r) => r.reflection_type === "monthly_plan").length;
 
   const activePeriodic = panelSelection.kind === "periodic"
     ? periodicReflections.find((r) => r.id === panelSelection.id) ?? null
@@ -386,14 +403,22 @@ export default function ReflectionsView() {
                   )}
                   <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
                     <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-gray-500">Statistics</h3>
-                    <div className="flex gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <div className="text-2xl font-semibold text-gray-100">{weeklyCount}</div>
                         <div className="text-xs text-gray-500">Weekly</div>
                       </div>
                       <div>
+                        <div className="text-2xl font-semibold text-purple-300">{weeklyPlanCount}</div>
+                        <div className="text-xs text-gray-500">Weekly Plan</div>
+                      </div>
+                      <div>
                         <div className="text-2xl font-semibold text-gray-100">{monthlyCount}</div>
                         <div className="text-xs text-gray-500">Monthly</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-semibold text-purple-300">{monthlyPlanCount}</div>
+                        <div className="text-xs text-gray-500">Monthly Plan</div>
                       </div>
                     </div>
                   </div>
@@ -797,7 +822,7 @@ export default function ReflectionsView() {
 }
 
 interface NewPeriodicFormProps {
-  reflectionType: "weekly" | "monthly";
+  reflectionType: PeriodicReflectionType;
   dateFrom: string;
   dateTo: string;
   isSaving: boolean;
@@ -809,10 +834,20 @@ interface NewPeriodicFormProps {
 function NewPeriodicForm({ reflectionType, dateFrom, dateTo, isSaving, saveError, onSave, onCancel }: NewPeriodicFormProps) {
   const [content, setContent] = useState("");
 
-  const { week } = getISOWeekNumber(new Date(dateFrom + "T00:00:00"));
-  const headerLabel = reflectionType === "monthly"
-    ? `New Monthly Reflection · ${new Date(dateFrom + "T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" })}`
-    : `New Weekly Reflection · ${formatWeekLabel(dateFrom, dateTo, week)}`;
+  const d = new Date(dateFrom + "T00:00:00");
+  const { week } = getISOWeekNumber(d);
+  const monthRange = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const weekRange = formatWeekLabel(dateFrom, dateTo, week);
+  const prefix = (() => {
+    switch (reflectionType) {
+      case "monthly": return "New Monthly Reflection";
+      case "monthly_plan": return "New Monthly Plan";
+      case "weekly_plan": return "New Weekly Plan";
+      default: return "New Weekly Reflection";
+    }
+  })();
+  const range = reflectionType === "monthly" || reflectionType === "monthly_plan" ? monthRange : weekRange;
+  const headerLabel = `${prefix} · ${range}`;
 
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-3">
