@@ -1,11 +1,17 @@
-from fastapi import APIRouter, Depends, Form, File, UploadFile
+from fastapi import APIRouter, Depends, Form, File, UploadFile, HTTPException
 from typing import Optional, List
 from database import get_db
 from sqlalchemy.orm import Session
 import uuid
 
-from schemas.chat import ChatResponse, SessionResponse, MessageResponse
-from models.chat import Session as ChatSession, Message
+from schemas.chat import (
+    ChatResponse,
+    SessionResponse,
+    SessionDetailResponse,
+    MessageContextItem,
+    MessageResponse,
+)
+from models.chat import Session as ChatSession, Message, MessageContext
 from services.conversation import handle_chat
 
 
@@ -49,7 +55,12 @@ def read_sessions(
     db: Session = Depends(get_db),
 ):
     q = (
-        db.query(ChatSession.id, ChatSession.updated_at, ChatSession.project_id)
+        db.query(
+            ChatSession.id,
+            ChatSession.updated_at,
+            ChatSession.project_id,
+            ChatSession.prompt_id,
+        )
         .filter(ChatSession.user_id == user_id)
     )
     if project_id is not None:
@@ -57,6 +68,41 @@ def read_sessions(
     else:
         q = q.filter(ChatSession.project_id.is_(None))
     return q.order_by(ChatSession.updated_at.desc()).all()
+
+
+@router.get("/chat/sessions/{session_id}", response_model=SessionDetailResponse)
+def read_session(session_id: uuid.UUID, db: Session = Depends(get_db)):
+    session = (
+        db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    )
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    last_user_message = (
+        db.query(Message)
+        .filter(Message.session_id == session_id, Message.role == "user")
+        .order_by(Message.created_at.desc())
+        .first()
+    )
+
+    attached: List[MessageContextItem] = []
+    if last_user_message is not None:
+        rows = (
+            db.query(MessageContext)
+            .filter(MessageContext.message_id == last_user_message.id)
+            .all()
+        )
+        attached = [
+            MessageContextItem(type=r.context_type, id=r.context_id) for r in rows
+        ]
+
+    return SessionDetailResponse(
+        id=session.id,
+        updated_at=session.updated_at,
+        project_id=session.project_id,
+        prompt_id=session.prompt_id,
+        attached_contexts=attached,
+    )
 
 
 @router.get(

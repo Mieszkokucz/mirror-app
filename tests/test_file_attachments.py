@@ -167,37 +167,6 @@ def test_chat_with_direct_unsupported_file(mock_llm, client, test_user):
     assert response.status_code == 422
 
 
-# --- C. Historyczne pliki ---
-
-@patch("services.conversation.send_to_llm", return_value="ok")
-def test_historic_files_included_in_next_message(mock_llm, client, test_user, test_library_file):
-    # Pierwsza wiadomość z plikiem
-    resp1 = client.post(
-        "/chat/",
-        data={
-            "message": "first",
-            "user_id": str(test_user.id),
-            "context_file_ids": str(test_library_file.id),
-        },
-    )
-    assert resp1.status_code == 200
-    session_id = resp1.json()["session_id"]
-
-    # Druga wiadomość bez pliku — plik powinien pojawić się jako historyczny
-    resp2 = client.post(
-        "/chat/",
-        data={
-            "message": "second",
-            "user_id": str(test_user.id),
-            "session_id": session_id,
-        },
-    )
-    assert resp2.status_code == 200
-    system_prompt = mock_llm.call_args[1]["system_prompt"]
-    assert "Previously attached files" in system_prompt
-    assert "Hello from library file" in system_prompt
-
-
 # --- D. Endpointy /files/library ---
 
 def test_upload_library_file(client, test_user):

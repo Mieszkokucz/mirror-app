@@ -21,22 +21,52 @@ def _is_text_file(filename: str, mime_type: str) -> bool:
 
 
 async def handle_chat(
-    db, user_id, message, session_id, prompt_id, project_id, model, context_reflection_ids, context_file_ids, context_periodic_reflection_ids, files
+    db,
+    user_id,
+    message,
+    session_id,
+    prompt_id,
+    project_id,
+    model,
+    context_reflection_ids,
+    context_file_ids,
+    context_periodic_reflection_ids,
+    files,
 ):
     if session_id is None:
-        db_session = ChatSession(user_id=user_id, project_id=project_id)
+        # validate prompt_id before persisting the session to avoid FK violations
+        system_prompt = ""
+        if prompt_id is not None:
+            db_prompt = (
+                db.query(SystemPrompt).filter(SystemPrompt.id == prompt_id).first()
+            )
+            if db_prompt is None:
+                raise HTTPException(status_code=404, detail="System prompt not found")
+            system_prompt = db_prompt.content
+
+        db_session = ChatSession(
+            user_id=user_id,
+            project_id=project_id,
+            prompt_id=prompt_id,
+        )
         db.add(db_session)
         db.commit()
         db.refresh(db_session)
         session_id = db_session.id
+    else:
+        db_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        if db_session is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        prompt_id = db_session.prompt_id
 
-    # resolve system prompt from DB
-    system_prompt = ""
-    if prompt_id is not None:
-        db_prompt = db.query(SystemPrompt).filter(SystemPrompt.id == prompt_id).first()
-        if db_prompt is None:
-            raise HTTPException(status_code=404, detail="System prompt not found")
-        system_prompt = db_prompt.content
+        system_prompt = ""
+        if prompt_id is not None:
+            db_prompt = (
+                db.query(SystemPrompt).filter(SystemPrompt.id == prompt_id).first()
+            )
+            if db_prompt is None:
+                raise HTTPException(status_code=404, detail="System prompt not found")
+            system_prompt = db_prompt.content
 
     # add attached reflections to system prompt as
     if context_reflection_ids:
@@ -66,7 +96,9 @@ async def handle_chat(
                 status_code=404, detail="One or more periodic reflection IDs not found"
             )
 
-        system_prompt += "\n\n---\nThe user has attached the following periodic reflections:\n\n"
+        system_prompt += (
+            "\n\n---\nThe user has attached the following periodic reflections:\n\n"
+        )
         for pr in periodic_list:
             label = _periodic_label(pr)
             system_prompt += f"{label}\n{pr.content}\n\n"
@@ -75,21 +107,24 @@ async def handle_chat(
     if context_file_ids:
         file_list = db.query(File).filter(File.id.in_(context_file_ids)).all()
         if len(file_list) < len(context_file_ids):
-            raise HTTPException(status_code=404, detail="One or more file IDs not found")
+            raise HTTPException(
+                status_code=404, detail="One or more file IDs not found"
+            )
 
         system_prompt += "\n\n---\nThe user has attached the following files:\n\n"
         for f in file_list:
             if not _is_text_file(f.filename, f.mime_type):
                 raise HTTPException(
                     status_code=422,
-                    detail=f"File '{f.filename}' has unsupported type '{f.mime_type}'. Only text files are supported."
+                    detail=f"File '{f.filename}' has unsupported type '{f.mime_type}'. Only text files are supported.",
                 )
             try:
                 with open(f.storage_path, encoding="utf-8") as fh:
                     content = fh.read()
             except OSError:
                 raise HTTPException(
-                    status_code=500, detail=f"File '{f.filename}' could not be read from disk"
+                    status_code=500,
+                    detail=f"File '{f.filename}' could not be read from disk",
                 )
             system_prompt += f"[File: {f.filename}]\n{content}\n\n"
 
@@ -99,7 +134,7 @@ async def handle_chat(
             if not _is_text_file(f.filename, f.content_type or ""):
                 raise HTTPException(
                     status_code=422,
-                    detail=f"File '{f.filename}' has unsupported type '{f.content_type}'. Only text files are supported."
+                    detail=f"File '{f.filename}' has unsupported type '{f.content_type}'. Only text files are supported.",
                 )
             data = await f.read()
             message += f"\n\n---\n[File: {f.filename}]\n{data.decode('utf-8')}"
@@ -118,27 +153,33 @@ async def handle_chat(
     # save message_context rows
     if context_reflection_ids:
         for context_reflection_id in context_reflection_ids:
-            db.add(MessageContext(
-                message_id=db_message.id,
-                context_type="reflection",
-                context_id=context_reflection_id,
-            ))
+            db.add(
+                MessageContext(
+                    message_id=db_message.id,
+                    context_type="reflection",
+                    context_id=context_reflection_id,
+                )
+            )
 
     if context_file_ids:
         for context_file_id in context_file_ids:
-            db.add(MessageContext(
-                message_id=db_message.id,
-                context_type="file",
-                context_id=context_file_id,
-            ))
+            db.add(
+                MessageContext(
+                    message_id=db_message.id,
+                    context_type="file",
+                    context_id=context_file_id,
+                )
+            )
 
     if context_periodic_reflection_ids:
         for periodic_id in context_periodic_reflection_ids:
-            db.add(MessageContext(
-                message_id=db_message.id,
-                context_type="periodic_reflection",
-                context_id=periodic_id,
-            ))
+            db.add(
+                MessageContext(
+                    message_id=db_message.id,
+                    context_type="periodic_reflection",
+                    context_id=periodic_id,
+                )
+            )
 
     if context_reflection_ids or context_file_ids or context_periodic_reflection_ids:
         db.commit()
@@ -150,65 +191,6 @@ async def handle_chat(
         .order_by(Message.created_at)
         .all()
     )
-
-    message_ids = [msg.id for msg in session_hist]
-    past_contexts = (
-        db.query(MessageContext)
-        .filter(MessageContext.message_id.in_(message_ids))
-        .all()
-    )
-    already_reflection_ids = set(context_reflection_ids or [])
-    already_file_ids = set(context_file_ids or [])
-    already_periodic_ids = set(context_periodic_reflection_ids or [])
-    historic_reflection_ids = {
-        ctx.context_id for ctx in past_contexts
-        if ctx.context_type == "reflection" and ctx.context_id not in already_reflection_ids
-    }
-    historic_file_ids = {
-        ctx.context_id for ctx in past_contexts
-        if ctx.context_type == "file" and ctx.context_id not in already_file_ids
-    }
-    historic_periodic_ids = {
-        ctx.context_id for ctx in past_contexts
-        if ctx.context_type == "periodic_reflection" and ctx.context_id not in already_periodic_ids
-    }
-    if historic_reflection_ids:
-        historic_reflections = (
-            db.query(DailyReflection)
-            .filter(DailyReflection.id.in_(historic_reflection_ids))
-            .all()
-        )
-        system_prompt += "\n\n---\nPreviously attached reflections (from earlier in this conversation):\n\n"
-        for r in historic_reflections:
-            system_prompt += f"[Reflection: {r.reflection_type}, {r.date}]\n{r.content}\n\n"
-    if historic_file_ids:
-        historic_files = db.query(File).filter(File.id.in_(historic_file_ids)).all()
-        system_prompt += "\n\n---\nPreviously attached files (from earlier in this conversation):\n\n"
-        for f in historic_files:
-            if not _is_text_file(f.filename, f.mime_type):
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"File '{f.filename}' has unsupported type '{f.mime_type}'. Only text files are supported."
-                )
-            try:
-                with open(f.storage_path, encoding="utf-8") as fh:
-                    content = fh.read()
-            except OSError:
-                raise HTTPException(
-                    status_code=500, detail=f"File '{f.filename}' could not be read from disk"
-                )
-            system_prompt += f"[File: {f.filename}]\n{content}\n\n"
-
-    if historic_periodic_ids:
-        historic_periodics = (
-            db.query(PeriodicReflection)
-            .filter(PeriodicReflection.id.in_(historic_periodic_ids))
-            .all()
-        )
-        system_prompt += "\n\n---\nPreviously attached periodic reflections (from earlier in this conversation):\n\n"
-        for pr in historic_periodics:
-            label = _periodic_label(pr)
-            system_prompt += f"{label}\n{pr.content}\n\n"
 
     message_to_llm = list(
         {"role": msg.role, "content": msg.content} for msg in session_hist
@@ -225,4 +207,4 @@ async def handle_chat(
     db.add(db_message)
     db.commit()
 
-    return {"response": response, "session_id": session_id}
+    return {"response": response, "session_id": session_id, "prompt_id": prompt_id}

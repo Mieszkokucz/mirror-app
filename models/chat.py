@@ -21,6 +21,9 @@ class Session(Base):
     )
     user_id = Column(UUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     project_id = Column(UUID, ForeignKey("project.id", ondelete="CASCADE"), nullable=True)
+    prompt_id = Column(
+        UUID, ForeignKey("system_prompt.id", ondelete="SET NULL"), nullable=True
+    )
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=text("NOW()")
     )

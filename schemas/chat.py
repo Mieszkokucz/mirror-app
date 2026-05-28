@@ -23,12 +23,23 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     session_id: uuid.UUID
+    prompt_id: Optional[uuid.UUID] = None
 
 
 class SessionResponse(BaseModel):
     id: uuid.UUID
     updated_at: datetime
     project_id: Optional[uuid.UUID] = None
+    prompt_id: Optional[uuid.UUID] = None
+
+
+class MessageContextItem(BaseModel):
+    type: Literal["reflection", "file", "periodic_reflection"]
+    id: uuid.UUID
+
+
+class SessionDetailResponse(SessionResponse):
+    attached_contexts: List[MessageContextItem] = []
 
 
 class MessageResponse(BaseModel):
