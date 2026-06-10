@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SessionResponse, SystemPromptResponse, ReflectionResponse, FileResponse, ProjectResponse, PeriodicReflectionResponse, fetchSessions, fetchSystemPrompts, fetchReflections, fetchLibraryFiles, fetchProjects, fetchPeriodicReflections, createProject, deleteProject, fetchAutoContext, fetchAutoContextPeriodic } from "@/lib/api";
+import { SessionResponse, SystemPromptResponse, ReflectionResponse, FileResponse, ProjectResponse, PeriodicReflectionResponse, fetchSessions, fetchSessionDetail, fetchSystemPrompts, fetchReflections, fetchLibraryFiles, fetchProjects, fetchPeriodicReflections, createProject, deleteProject, fetchAutoContext, fetchAutoContextPeriodic } from "@/lib/api";
 import { USER_ID, FREE_CHAT_ID } from "@/lib/constants";
 import Sidebar from "@/components/Sidebar";
 import ChatWindow from "@/components/ChatWindow";
@@ -84,6 +84,7 @@ export default function Home() {
   // Auto-attach today's reflections when evening/midday prompt is selected
   const AUTO_ATTACH_PROMPTS = ["evening_reflection", "midday_reflection"];
   useEffect(() => {
+    if (activeSessionId !== null) return; // auto-attach only for a fresh chat
     if (chatPromptValue === FREE_CHAT_ID) return;
     const prompt = prompts.find((p) => p.id === chatPromptValue);
     if (prompt && AUTO_ATTACH_PROMPTS.includes(prompt.name)) {
@@ -103,6 +104,7 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (activeSessionId !== null) return; // range panel only for a fresh chat
     if (chatPromptValue === FREE_CHAT_ID) { setPeriodicDateRange(null); return; }
     const prompt = prompts.find((p) => p.id === chatPromptValue);
     if (!prompt) { setPeriodicDateRange(null); return; }
@@ -161,9 +163,35 @@ export default function Home() {
     }
   }
 
-  function handleSelectSession(sessionId: string) {
+  async function handleSelectSession(sessionId: string) {
     setActiveSessionId(sessionId);
     setActiveView("chat");
+    setPeriodicDateRange(null);
+    try {
+      const detail = await fetchSessionDetail(sessionId);
+      setChatPromptValue(detail.prompt_id ?? FREE_CHAT_ID);
+
+      // Restore attached contexts from the session's last user message
+      const reflectionIds = detail.attached_contexts
+        .filter((c) => c.type === "reflection")
+        .map((c) => c.id);
+      const fileIds = detail.attached_contexts
+        .filter((c) => c.type === "file")
+        .map((c) => c.id);
+      const periodicIds = new Set(
+        detail.attached_contexts
+          .filter((c) => c.type === "periodic_reflection")
+          .map((c) => c.id)
+      );
+      setAttachedReflectionIds(reflectionIds);
+      setAttachedFileIds(fileIds);
+      setAttachedPeriodicReflections(
+        periodicReflections.filter((r) => periodicIds.has(r.id))
+      );
+    } catch {
+      /* zostaw bieżący prompt jeśli fetch padnie; wyczyść attachmenty dla spójności */
+      handleClearAttachments();
+    }
   }
 
   function handleSessionCreated(sessionId: string) {
@@ -406,6 +434,7 @@ export default function Home() {
           {activeView === "chat" ? (
             <ChatWindow
               sessionId={activeSessionId}
+              promptLocked={activeSessionId !== null}
               onSessionCreated={handleSessionCreated}
               prompts={prompts}
               reflections={reflections}

@@ -19,6 +19,7 @@ interface PromptOption {
 
 interface ChatWindowProps {
   sessionId: string | null;
+  promptLocked: boolean;
   onSessionCreated: (sessionId: string) => void;
   prompts: SystemPromptResponse[];
   reflections: ReflectionResponse[];
@@ -43,6 +44,7 @@ interface ChatWindowProps {
 
 export default function ChatWindow({
   sessionId,
+  promptLocked,
   onSessionCreated,
   prompts: dbPrompts,
   reflections,
@@ -223,6 +225,8 @@ export default function ChatWindow({
           prompts={prompts}
           selectedPrompt={promptValue}
           onPromptChange={onPromptChange}
+          promptLocked={promptLocked}
+          promptLabel={isFreeChatSelected ? FREE_CHAT_META.label : currentPrompt?.label ?? null}
           attachedReflections={attachedReflections}
           onRemoveAttachmentsByDate={onRemoveAttachmentsByDate}
           allReflections={reflections}

@@ -19,6 +19,8 @@ interface ChatInputProps {
   prompts: readonly SelectOption[];
   selectedPrompt: string;
   onPromptChange: (prompt: string) => void;
+  promptLocked: boolean;
+  promptLabel: string | null;
   attachedReflections: ReflectionResponse[];
   onRemoveAttachmentsByDate: (date: string) => void;
   allReflections: ReflectionResponse[];
@@ -74,7 +76,7 @@ function formatPeriodicChipLabel(pr: PeriodicReflectionResponse): string {
   return `W${week} · ${formatWeekLabel(pr.date_from, pr.date_to, week)}`;
 }
 
-export default function ChatInput({ onSend, disabled, models, selectedModel, onModelChange, prompts, selectedPrompt, onPromptChange, attachedReflections, onRemoveAttachmentsByDate, allReflections, onAttachByDate, libraryFiles, attachedFileIds, onToggleFileId, attachedPeriodicReflections, onRemovePeriodicReflection, periodicReflections, onTogglePeriodicReflection }: ChatInputProps) {
+export default function ChatInput({ onSend, disabled, models, selectedModel, onModelChange, prompts, selectedPrompt, onPromptChange, promptLocked, promptLabel, attachedReflections, onRemoveAttachmentsByDate, allReflections, onAttachByDate, libraryFiles, attachedFileIds, onToggleFileId, attachedPeriodicReflections, onRemovePeriodicReflection, periodicReflections, onTogglePeriodicReflection }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -132,6 +134,11 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
 
     if (triggerPos >= 0) {
       const trigger = val[triggerPos] as "@" | "/";
+      // Prompt switching ("/") is disabled once the session is locked
+      if (trigger === "/" && promptLocked) {
+        if (mentionMode !== null) closeMention();
+        return;
+      }
       const filter = val.slice(triggerPos + 1, pos);
       if (mentionMode !== trigger || mentionFilter !== filter) {
         setMentionMode(trigger);
@@ -279,6 +286,18 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
         onChange={handleFileInputChange}
       />
 
+      {/* Locked prompt badge (read-only for existing sessions) */}
+      {promptLocked && promptLabel && (
+        <div className="mb-2">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-800 bg-gray-900 px-2.5 py-1 text-xs text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3 flex-shrink-0">
+              <path fillRule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V7A1.5 1.5 0 0 0 3 8.5v5A1.5 1.5 0 0 0 4.5 15h7a1.5 1.5 0 0 0 1.5-1.5v-5A1.5 1.5 0 0 0 11.5 7V4.5A3.5 3.5 0 0 0 8 1Zm2 6V4.5a2 2 0 1 0-4 0V7h4Z" clipRule="evenodd" />
+            </svg>
+            <span>Prompt: {promptLabel}</span>
+          </span>
+        </div>
+      )}
+
       {/* Attachment chips */}
       {hasChips && (
         <div className="mb-2 flex flex-wrap gap-1.5">
@@ -390,17 +409,19 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
           <div className="absolute bottom-full left-0 z-50 mb-1">
             {/* Categories */}
             <div className="relative rounded-xl border border-gray-800 bg-gray-900 py-1 shadow-lg">
-              <button
-                onMouseEnter={() => setPlusSubMenu("prompts")}
-                className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
-                  plusSubMenu === "prompts" ? "bg-gray-800 text-gray-100" : "text-gray-300 hover:bg-gray-800/60"
-                }`}
-              >
-                <span>System Prompts</span>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-3 w-3 text-gray-500">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
-              </button>
+              {!promptLocked && (
+                <button
+                  onMouseEnter={() => setPlusSubMenu("prompts")}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
+                    plusSubMenu === "prompts" ? "bg-gray-800 text-gray-100" : "text-gray-300 hover:bg-gray-800/60"
+                  }`}
+                >
+                  <span>System Prompts</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-3 w-3 text-gray-500">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
+              )}
               <button
                 onMouseEnter={() => setPlusSubMenu("notes")}
                 className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${

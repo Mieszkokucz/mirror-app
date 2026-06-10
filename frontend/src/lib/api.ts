@@ -32,6 +32,16 @@ export interface SessionResponse {
   id: string;
   updated_at: string;
   project_id?: string | null;
+  prompt_id?: string | null;
+}
+
+export interface MessageContextItem {
+  type: "reflection" | "file" | "periodic_reflection";
+  id: string;
+}
+
+export interface SessionDetailResponse extends SessionResponse {
+  attached_contexts: MessageContextItem[];
 }
 
 export interface ProjectResponse {
@@ -93,6 +103,15 @@ export async function fetchSessions(userId: string, projectId?: string): Promise
     throw new Error(`API error ${res.status}: ${text}`);
   }
   return res.json() as Promise<SessionResponse[]>;
+}
+
+export async function fetchSessionDetail(sessionId: string): Promise<SessionDetailResponse> {
+  const res = await fetch(`${API_BASE_URL}/chat/sessions/${sessionId}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json() as Promise<SessionDetailResponse>;
 }
 
 export async function fetchSessionMessages(sessionId: string): Promise<MessageResponse[]> {
