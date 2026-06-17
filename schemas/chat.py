@@ -11,7 +11,7 @@ class ChatRequest(BaseModel):
     prompt_id: Optional[uuid.UUID] = None
     model: Literal[
         "claude-haiku-4-5-20251001",
-        "claude-sonnet-4-20250514",
+        "claude-sonnet-4-6",
         "gpt-5.4",
         "gpt-5.4-mini",
     ] = "claude-haiku-4-5-20251001"
