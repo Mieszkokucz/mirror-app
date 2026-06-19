@@ -20,53 +20,47 @@ def _is_text_file(filename: str, mime_type: str) -> bool:
     return (mime_type or "").startswith("text/") or ext in _TEXT_EXTENSIONS
 
 
-async def handle_chat(
-    db,
-    user_id,
-    message,
-    session_id,
-    prompt_id,
-    project_id,
-    model,
-    context_reflection_ids,
-    context_file_ids,
-    context_periodic_reflection_ids,
-    files,
-):
-    if session_id is None:
-        # validate prompt_id before persisting the session to avoid FK violations
-        system_prompt = ""
-        if prompt_id is not None:
-            db_prompt = (
-                db.query(SystemPrompt).filter(SystemPrompt.id == prompt_id).first()
-            )
-            if db_prompt is None:
-                raise HTTPException(status_code=404, detail="System prompt not found")
-            system_prompt = db_prompt.content
+def build_system_prompt(db, session_id):
+    # load db_session
+    db_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
 
-        db_session = ChatSession(
-            user_id=user_id,
-            project_id=project_id,
-            prompt_id=prompt_id,
+    # load last messageid
+    last_message_id = (
+        db.query(Message.id)
+        .filter(Message.session_id == session_id)
+        .order_by(Message.created_at.desc())
+        .first()[0]
+    )
+
+    # load message_context rows
+    context_reflection_ids = []
+    context_file_ids = []
+    context_periodic_reflection_ids = []
+
+    rows = (
+        db.query(MessageContext)
+        .filter(MessageContext.message_id == last_message_id)
+        .all()
+    )
+
+    for row in rows:
+        if row.context_type == "reflection":
+            context_reflection_ids.append(row.context_id)
+        elif row.context_type == "file":
+            context_file_ids.append(row.context_id)
+        elif row.context_type == "periodic_reflection":
+            context_periodic_reflection_ids.append(row.context_id)
+
+    system_prompt = ""
+    if db_session.prompt_id is not None:
+        db_prompt = (
+            db.query(SystemPrompt)
+            .filter(SystemPrompt.id == db_session.prompt_id)
+            .first()
         )
-        db.add(db_session)
-        db.commit()
-        db.refresh(db_session)
-        session_id = db_session.id
-    else:
-        db_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-        if db_session is None:
-            raise HTTPException(status_code=404, detail="Session not found")
-        prompt_id = db_session.prompt_id
-
-        system_prompt = ""
-        if prompt_id is not None:
-            db_prompt = (
-                db.query(SystemPrompt).filter(SystemPrompt.id == prompt_id).first()
-            )
-            if db_prompt is None:
-                raise HTTPException(status_code=404, detail="System prompt not found")
-            system_prompt = db_prompt.content
+        if db_prompt is None:
+            raise HTTPException(status_code=404, detail="System prompt not found")
+        system_prompt = db_prompt.content
 
     # add attached reflections to system prompt as
     if context_reflection_ids:
@@ -128,6 +122,47 @@ async def handle_chat(
                 )
             system_prompt += f"[File: {f.filename}]\n{content}\n\n"
 
+    return system_prompt
+
+
+async def handle_chat(
+    db,
+    user_id,
+    message,
+    session_id,
+    prompt_id,
+    project_id,
+    model,
+    context_reflection_ids,
+    context_file_ids,
+    context_periodic_reflection_ids,
+    files,
+):
+    if session_id is None:
+        # validate prompt_id before persisting the session to avoid FK violations
+        system_prompt = ""
+        if prompt_id is not None:
+            db_prompt = (
+                db.query(SystemPrompt).filter(SystemPrompt.id == prompt_id).first()
+            )
+            if db_prompt is None:
+                raise HTTPException(status_code=404, detail="System prompt not found")
+
+        db_session = ChatSession(
+            user_id=user_id,
+            project_id=project_id,
+            prompt_id=prompt_id,
+        )
+        db.add(db_session)
+        db.commit()
+        db.refresh(db_session)
+        session_id = db_session.id
+    else:
+        db_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        if db_session is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        prompt_id = db_session.prompt_id
+
     # append directly uploaded files inline to the user message
     if files:
         for f in files:
@@ -183,6 +218,8 @@ async def handle_chat(
 
     if context_reflection_ids or context_file_ids or context_periodic_reflection_ids:
         db.commit()
+
+    system_prompt = build_system_prompt(db, session_id)
 
     # read whole session from db
     session_hist = (
