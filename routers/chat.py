@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Form, File, UploadFile, HTTPException
+from fastapi.responses import PlainTextResponse
 from typing import Optional, List
 from database import get_db
 from sqlalchemy.orm import Session
@@ -13,6 +14,7 @@ from schemas.chat import (
 )
 from models.chat import Session as ChatSession, Message, MessageContext
 from services.conversation import handle_chat
+from services.run_export import build_run_md
 
 
 router = APIRouter()
@@ -114,4 +116,13 @@ def read_messages(session_id: uuid.UUID, db: Session = Depends(get_db)):
         .filter(Message.session_id == session_id)
         .order_by(Message.created_at)
         .all()
+    )
+
+
+@router.get("/chat/sessions/{session_id}/export")
+def export_run(session_id: uuid.UUID, db: Session = Depends(get_db)):
+    content = build_run_md(db, session_id)
+    return PlainTextResponse(
+        content=content,
+        headers={"Content-Disposition": "attachment; filename=run.md"},
     )

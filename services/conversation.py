@@ -25,9 +25,10 @@ def build_system_prompt(db, session_id):
     db_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
 
     # load last messageid
-    last_message_id = (
+    last_user_message_id = (
         db.query(Message.id)
         .filter(Message.session_id == session_id)
+        .filter(Message.role == "user")
         .order_by(Message.created_at.desc())
         .first()[0]
     )
@@ -39,7 +40,7 @@ def build_system_prompt(db, session_id):
 
     rows = (
         db.query(MessageContext)
-        .filter(MessageContext.message_id == last_message_id)
+        .filter(MessageContext.message_id == last_user_message_id)
         .all()
     )
 
@@ -123,6 +124,15 @@ def build_system_prompt(db, session_id):
             system_prompt += f"[File: {f.filename}]\n{content}\n\n"
 
     return system_prompt
+
+
+def load_conversation_history(db, session_id):
+    return (
+        db.query(Message)
+        .filter(Message.session_id == session_id)
+        .order_by(Message.created_at)
+        .all()
+    )
 
 
 async def handle_chat(
@@ -222,12 +232,7 @@ async def handle_chat(
     system_prompt = build_system_prompt(db, session_id)
 
     # read whole session from db
-    session_hist = (
-        db.query(Message)
-        .filter(Message.session_id == session_id)
-        .order_by(Message.created_at)
-        .all()
-    )
+    session_hist = load_conversation_history(db, session_id)
 
     message_to_llm = list(
         {"role": msg.role, "content": msg.content} for msg in session_hist
