@@ -20,7 +20,9 @@ class Session(Base):
         UUID, primary_key=True, nullable=False, server_default=text("gen_random_uuid()")
     )
     user_id = Column(UUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    project_id = Column(UUID, ForeignKey("project.id", ondelete="CASCADE"), nullable=True)
+    project_id = Column(
+        UUID, ForeignKey("project.id", ondelete="CASCADE"), nullable=True
+    )
     prompt_id = Column(
         UUID, ForeignKey("system_prompt.id", ondelete="SET NULL"), nullable=True
     )
@@ -43,6 +45,7 @@ class Message(Base):
     )
     role = Column(String(30), nullable=False)
     content = Column(Text, nullable=False)
+    model = Column(String(50), nullable=True)
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=text("NOW()")
     )

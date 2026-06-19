@@ -240,7 +240,9 @@ async def handle_chat(
     )
 
     # save assistant response
-    db_message = Message(session_id=session_id, role="assistant", content=response)
+    db_message = Message(
+        session_id=session_id, role="assistant", model=model, content=response
+    )
     db.add(db_message)
     db.commit()
 
