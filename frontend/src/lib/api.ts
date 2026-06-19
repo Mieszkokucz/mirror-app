@@ -265,6 +265,20 @@ export async function exportReflections(userId: string, dateFrom?: string, dateT
   triggerBlobDownload(await res.blob(), filename);
 }
 
+export async function exportSession(sessionId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/chat/sessions/${sessionId}/export`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const filenameMatch = disposition.match(/filename=(.+)/);
+  const filename = filenameMatch ? filenameMatch[1] : "session_export.md";
+
+  triggerBlobDownload(await res.blob(), filename);
+}
+
 export async function fetchReflections(userId: string): Promise<ReflectionResponse[]> {
   const res = await fetch(`${API_BASE_URL}/reflections/?user_id=${userId}`);
   if (!res.ok) {

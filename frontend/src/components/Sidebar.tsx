@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { SessionResponse, SystemPromptResponse, ReflectionResponse, ProjectResponse } from "@/lib/api";
+import { useEffect, useRef, useState } from "react";
+import { SessionResponse, SystemPromptResponse, ReflectionResponse, ProjectResponse, exportSession } from "@/lib/api";
 import { groupReflectionsByDate } from "@/lib/utils";
 
 interface SidebarProps {
@@ -94,7 +94,29 @@ export default function Sidebar({
   const [newProjectDesc, setNewProjectDesc] = useState("");
   const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<string | null>(null);
   const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const [openMenuSessionId, setOpenMenuSessionId] = useState<string | null>(null);
+  const sessionMenuRef = useRef<HTMLDivElement>(null);
   const dateGroups = groupReflectionsByDate(reflections);
+
+  useEffect(() => {
+    if (openMenuSessionId === null) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (sessionMenuRef.current && !sessionMenuRef.current.contains(e.target as Node)) {
+        setOpenMenuSessionId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenuSessionId]);
+
+  async function handleExportSession(sessionId: string) {
+    setOpenMenuSessionId(null);
+    try {
+      await exportSession(sessionId);
+    } catch (e) {
+      console.error("Failed to export session", e);
+    }
+  }
 
   async function handleProjectCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -431,10 +453,10 @@ export default function Sidebar({
                 <h3 className="mb-1 px-2 text-xs font-medium text-gray-600">{label}</h3>
                 <ul className="space-y-0.5">
                   {groupSessions.map((session) => (
-                    <li key={session.id}>
+                    <li key={session.id} className="group relative">
                       <button
                         onClick={() => onSelectSession(session.id)}
-                        className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                        className={`w-full rounded-lg px-3 py-2 pr-9 text-left text-sm transition ${
                           activeSessionId === session.id
                             ? "border-l-2 border-blue-400 bg-gray-800/80 text-gray-100"
                             : "text-gray-400 hover:bg-gray-900 hover:text-gray-200"
@@ -443,6 +465,39 @@ export default function Sidebar({
                         <span className="text-xs text-gray-500">{formatTime(session.updated_at)}</span>
                         <span className="ml-2">Session</span>
                       </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuSessionId(openMenuSessionId === session.id ? null : session.id);
+                        }}
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-500 transition hover:bg-gray-700 hover:text-gray-200 group-hover:opacity-100 ${
+                          openMenuSessionId === session.id || activeSessionId === session.id
+                            ? "opacity-100"
+                            : "opacity-0"
+                        }`}
+                        aria-label="Session actions"
+                      >
+                        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <circle cx="4" cy="10" r="1.5" />
+                          <circle cx="10" cy="10" r="1.5" />
+                          <circle cx="16" cy="10" r="1.5" />
+                        </svg>
+                      </button>
+
+                      {openMenuSessionId === session.id && (
+                        <div
+                          ref={sessionMenuRef}
+                          className="absolute right-2 top-full z-50 mt-1 w-32 rounded-lg border border-gray-800 bg-gray-900 py-1 shadow-lg"
+                        >
+                          <button
+                            onClick={() => handleExportSession(session.id)}
+                            className="block w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-gray-800"
+                          >
+                            Export
+                          </button>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
