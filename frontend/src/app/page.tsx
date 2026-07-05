@@ -252,6 +252,7 @@ export default function Home() {
     setActiveView(view);
     if (view === "chat") {
       reloadReflections();
+      reloadPeriodicReflections();
     }
     if (view === "library") {
       reloadLibrary();
@@ -447,7 +448,6 @@ export default function Home() {
               onTogglePeriodicReflection={handleTogglePeriodicReflection}
               onAttachByDate={handleAttachByDate}
               onRemoveAttachmentsByDate={handleRemoveAttachmentsByDate}
-              onClearAttachments={handleClearAttachments}
               libraryFiles={libraryFiles}
               attachedFileIds={attachedFileIds}
               onToggleFileId={handleToggleFileId}

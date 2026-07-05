@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, KeyboardEvent } from "react";
-import { ReflectionResponse, FileResponse, PeriodicReflectionResponse } from "@/lib/api";
+import { ReflectionResponse, FileResponse, PeriodicReflectionResponse, PeriodicReflectionType } from "@/lib/api";
 import { groupReflectionsByDate, DateGroup, getISOWeekNumber, formatWeekLabel } from "@/lib/utils";
 import MentionDropdown from "./MentionDropdown";
 
@@ -68,13 +68,22 @@ function formatBytes(bytes: number): string {
 }
 
 function formatPeriodicChipLabel(pr: PeriodicReflectionResponse): string {
-  if (pr.reflection_type === "monthly") {
+  const isPlan = pr.reflection_type === "weekly_plan" || pr.reflection_type === "monthly_plan";
+  const prefix = isPlan ? "Plan · " : "";
+  if (pr.reflection_type === "monthly" || pr.reflection_type === "monthly_plan") {
     const d = new Date(pr.date_from + "T00:00:00");
-    return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    return prefix + d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   }
   const { week } = getISOWeekNumber(new Date(pr.date_from + "T00:00:00"));
-  return `W${week} · ${formatWeekLabel(pr.date_from, pr.date_to, week)}`;
+  return prefix + formatWeekLabel(pr.date_from, pr.date_to, week);
 }
+
+const PERIODIC_SORT_RANK: Record<PeriodicReflectionType, number> = {
+  monthly: 0,
+  monthly_plan: 1,
+  weekly: 2,
+  weekly_plan: 3,
+};
 
 export default function ChatInput({ onSend, disabled, models, selectedModel, onModelChange, prompts, selectedPrompt, onPromptChange, promptLocked, promptLabel, attachedReflections, onRemoveAttachmentsByDate, allReflections, onAttachByDate, libraryFiles, attachedFileIds, onToggleFileId, attachedPeriodicReflections, onRemovePeriodicReflection, periodicReflections, onTogglePeriodicReflection }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -271,7 +280,9 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
   const attachmentsByDate = groupByDate(attachedReflections);
   const hasChips = attachedReflections.length > 0 || attachedFileIds.length > 0 || pendingFiles.length > 0 || attachedPeriodicReflections.length > 0;
   const sortedPeriodic = [...periodicReflections].sort((a, b) => {
-    if (a.reflection_type !== b.reflection_type) return a.reflection_type === "monthly" ? -1 : 1;
+    if (a.reflection_type !== b.reflection_type) {
+      return PERIODIC_SORT_RANK[a.reflection_type] - PERIODIC_SORT_RANK[b.reflection_type];
+    }
     return b.date_from.localeCompare(a.date_from);
   });
 

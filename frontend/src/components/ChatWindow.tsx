@@ -32,7 +32,6 @@ interface ChatWindowProps {
   onTogglePeriodicReflection: (id: string) => void;
   onAttachByDate: (date: string) => void;
   onRemoveAttachmentsByDate: (date: string) => void;
-  onClearAttachments: () => void;
   libraryFiles: FileResponse[];
   attachedFileIds: string[];
   onToggleFileId: (id: string) => void;
@@ -57,7 +56,6 @@ export default function ChatWindow({
   onTogglePeriodicReflection,
   onAttachByDate,
   onRemoveAttachmentsByDate,
-  onClearAttachments,
   libraryFiles,
   attachedFileIds,
   onToggleFileId,
@@ -138,7 +136,6 @@ export default function ChatWindow({
         context_periodic_reflection_ids: attachedPeriodicReflections.length > 0 ? attachedPeriodicReflections.map((r) => r.id) : undefined,
         files: files.length > 0 ? files : undefined,
       });
-      onClearAttachments();
 
       setMessages((prev) => [
         ...prev,

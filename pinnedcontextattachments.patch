@@ -1,0 +1,99 @@
+diff --git a/frontend/src/app/page.tsx b/frontend/src/app/page.tsx
+index 821b7a5..ee95c3b 100644
+--- a/frontend/src/app/page.tsx
++++ b/frontend/src/app/page.tsx
+@@ -252,6 +252,7 @@ export default function Home() {
+     setActiveView(view);
+     if (view === "chat") {
+       reloadReflections();
++      reloadPeriodicReflections();
+     }
+     if (view === "library") {
+       reloadLibrary();
+@@ -447,7 +448,6 @@ export default function Home() {
+               onTogglePeriodicReflection={handleTogglePeriodicReflection}
+               onAttachByDate={handleAttachByDate}
+               onRemoveAttachmentsByDate={handleRemoveAttachmentsByDate}
+-              onClearAttachments={handleClearAttachments}
+               libraryFiles={libraryFiles}
+               attachedFileIds={attachedFileIds}
+               onToggleFileId={handleToggleFileId}
+diff --git a/frontend/src/components/ChatInput.tsx b/frontend/src/components/ChatInput.tsx
+index afe08fc..f21a3b0 100644
+--- a/frontend/src/components/ChatInput.tsx
++++ b/frontend/src/components/ChatInput.tsx
+@@ -1,7 +1,7 @@
+ "use client";
+ 
+ import { useEffect, useRef, useState, KeyboardEvent } from "react";
+-import { ReflectionResponse, FileResponse, PeriodicReflectionResponse } from "@/lib/api";
++import { ReflectionResponse, FileResponse, PeriodicReflectionResponse, PeriodicReflectionType } from "@/lib/api";
+ import { groupReflectionsByDate, DateGroup, getISOWeekNumber, formatWeekLabel } from "@/lib/utils";
+ import MentionDropdown from "./MentionDropdown";
+ 
+@@ -68,14 +68,23 @@ function formatBytes(bytes: number): string {
+ }
+ 
+ function formatPeriodicChipLabel(pr: PeriodicReflectionResponse): string {
+-  if (pr.reflection_type === "monthly") {
++  const isPlan = pr.reflection_type === "weekly_plan" || pr.reflection_type === "monthly_plan";
++  const prefix = isPlan ? "Plan · " : "";
++  if (pr.reflection_type === "monthly" || pr.reflection_type === "monthly_plan") {
+     const d = new Date(pr.date_from + "T00:00:00");
+-    return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
++    return prefix + d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+   }
+   const { week } = getISOWeekNumber(new Date(pr.date_from + "T00:00:00"));
+-  return `W${week} · ${formatWeekLabel(pr.date_from, pr.date_to, week)}`;
++  return prefix + formatWeekLabel(pr.date_from, pr.date_to, week);
+ }
+ 
++const PERIODIC_SORT_RANK: Record<PeriodicReflectionType, number> = {
++  monthly: 0,
++  monthly_plan: 1,
++  weekly: 2,
++  weekly_plan: 3,
++};
++
+ export default function ChatInput({ onSend, disabled, models, selectedModel, onModelChange, prompts, selectedPrompt, onPromptChange, promptLocked, promptLabel, attachedReflections, onRemoveAttachmentsByDate, allReflections, onAttachByDate, libraryFiles, attachedFileIds, onToggleFileId, attachedPeriodicReflections, onRemovePeriodicReflection, periodicReflections, onTogglePeriodicReflection }: ChatInputProps) {
+   const textareaRef = useRef<HTMLTextAreaElement>(null);
+   const fileInputRef = useRef<HTMLInputElement>(null);
+@@ -271,7 +280,9 @@ export default function ChatInput({ onSend, disabled, models, selectedModel, onM
+   const attachmentsByDate = groupByDate(attachedReflections);
+   const hasChips = attachedReflections.length > 0 || attachedFileIds.length > 0 || pendingFiles.length > 0 || attachedPeriodicReflections.length > 0;
+   const sortedPeriodic = [...periodicReflections].sort((a, b) => {
+-    if (a.reflection_type !== b.reflection_type) return a.reflection_type === "monthly" ? -1 : 1;
++    if (a.reflection_type !== b.reflection_type) {
++      return PERIODIC_SORT_RANK[a.reflection_type] - PERIODIC_SORT_RANK[b.reflection_type];
++    }
+     return b.date_from.localeCompare(a.date_from);
+   });
+ 
+diff --git a/frontend/src/components/ChatWindow.tsx b/frontend/src/components/ChatWindow.tsx
+index 16d2f44..b25d2b9 100644
+--- a/frontend/src/components/ChatWindow.tsx
++++ b/frontend/src/components/ChatWindow.tsx
+@@ -32,7 +32,6 @@ interface ChatWindowProps {
+   onTogglePeriodicReflection: (id: string) => void;
+   onAttachByDate: (date: string) => void;
+   onRemoveAttachmentsByDate: (date: string) => void;
+-  onClearAttachments: () => void;
+   libraryFiles: FileResponse[];
+   attachedFileIds: string[];
+   onToggleFileId: (id: string) => void;
+@@ -57,7 +56,6 @@ export default function ChatWindow({
+   onTogglePeriodicReflection,
+   onAttachByDate,
+   onRemoveAttachmentsByDate,
+-  onClearAttachments,
+   libraryFiles,
+   attachedFileIds,
+   onToggleFileId,
+@@ -138,7 +136,6 @@ export default function ChatWindow({
+         context_periodic_reflection_ids: attachedPeriodicReflections.length > 0 ? attachedPeriodicReflections.map((r) => r.id) : undefined,
+         files: files.length > 0 ? files : undefined,
+       });
+-      onClearAttachments();
+ 
+       setMessages((prev) => [
+         ...prev,
