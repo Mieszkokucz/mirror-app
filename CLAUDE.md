@@ -33,7 +33,7 @@ python seed.py
 
 - `main.py` — FastAPI app entry point, mounts routers
 - `database.py` — SQLAlchemy engine, `Base`, `get_db()` dependency (reads `DATABASE_URL` from `.env`)
-- `services/llm_gateway.py` — Anthropic API wrapper (`send_to_anthropic()`)
+- `services/llm_gateway.py` — LangChain wrapper (`send_to_llm()`), routes model to provider via `init_chat_model`
 - `services/conversation.py` — Chat orchestration: session creation, message persistence, system prompt loading from DB, LLM call
 - `models/system_prompts.py` — `SystemPrompt` model (built-in + user-custom prompts)
 - `routers/system_prompts.py` — CRUD for system prompts (built-in prompts cannot be deleted)

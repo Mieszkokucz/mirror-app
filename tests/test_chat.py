@@ -118,8 +118,8 @@ def test_create_chat_with_prompt_id(mock_llm, client, db_session, test_user):
         },
     )
     assert response.status_code == 200
-    call_kwargs = mock_llm.call_args
-    assert call_kwargs[1]["system_prompt"] == "You are a test assistant."
+    system_message = mock_llm.call_args[0][0][0]
+    assert system_message.content == "You are a test assistant."
 
 
 @patch("services.conversation.send_to_llm", return_value="mocked response")
@@ -244,9 +244,9 @@ def test_create_chat_with_context_reflections(
     )
 
     assert response.status_code == 200
-    call_kwargs = mock_llm.call_args
-    assert "[Reflection: morning, 2026-03-19]" in call_kwargs[1]["system_prompt"]
-    assert "test" in call_kwargs[1]["system_prompt"]
+    system_prompt = mock_llm.call_args[0][0][0].content
+    assert "[Reflection: morning, 2026-03-19]" in system_prompt
+    assert "test" in system_prompt
 
 
 @patch("services.conversation.send_to_llm", return_value="mocked response")
@@ -321,9 +321,9 @@ def test_create_chat_existing_session_uses_session_prompt(
     )
 
     assert response.status_code == 200
-    call_kwargs = mock_llm.call_args
-    assert "AAA-system-prompt-content" in call_kwargs[1]["system_prompt"]
-    assert "BBB-system-prompt-content" not in call_kwargs[1]["system_prompt"]
+    system_prompt = mock_llm.call_args[0][0][0].content
+    assert "AAA-system-prompt-content" in system_prompt
+    assert "BBB-system-prompt-content" not in system_prompt
     assert response.json()["prompt_id"] == str(prompt_a.id)
 
 
@@ -365,7 +365,7 @@ def test_create_chat_does_not_accumulate_previous_contexts(
     )
     assert second.status_code == 200
 
-    system_prompt = mock_llm.call_args[1]["system_prompt"]
+    system_prompt = mock_llm.call_args[0][0][0].content
     assert "Previously attached" not in system_prompt
     assert "[Reflection:" not in system_prompt
     assert test_reflection.content not in system_prompt

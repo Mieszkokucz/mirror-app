@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from services.llm_gateway import _resolve_provider, send_to_llm, _call_openai
+from langchain_core.messages import HumanMessage, SystemMessage
+from services.llm_gateway import _resolve_provider, send_to_llm
 
 
 # --- _resolve_provider ---
@@ -26,31 +27,39 @@ def test_resolve_provider_unknown():
         _resolve_provider("llama-3-70b")
 
 
-# --- send_to_llm routing ---
+# --- send_to_llm ---
 
-@patch("services.llm_gateway._call_anthropic", return_value="anthropic response")
-def test_send_to_llm_routes_to_anthropic(mock_anthropic):
-    result = send_to_llm([{"role": "user", "content": "hi"}], "sys", "claude-haiku-4-5-20251001")
-    mock_anthropic.assert_called_once()
+@patch("services.llm_gateway.init_chat_model")
+def test_send_to_llm_uses_anthropic_provider(mock_init):
+    mock_init.return_value.invoke.return_value.content = "anthropic response"
+
+    result = send_to_llm([HumanMessage(content="hi")], "claude-haiku-4-5-20251001")
+
     assert result == "anthropic response"
+    assert mock_init.call_args.kwargs["model_provider"] == "anthropic"
 
 
-@patch("services.llm_gateway._call_openai", return_value="openai response")
-def test_send_to_llm_routes_to_openai(mock_openai):
-    result = send_to_llm([{"role": "user", "content": "hi"}], "sys", "gpt-4o")
-    mock_openai.assert_called_once()
+@patch("services.llm_gateway.init_chat_model")
+def test_send_to_llm_uses_openai_provider(mock_init):
+    mock_init.return_value.invoke.return_value.content = "openai response"
+
+    result = send_to_llm([HumanMessage(content="hi")], "gpt-4o")
+
     assert result == "openai response"
+    assert mock_init.call_args.kwargs["model_provider"] == "openai"
 
 
-# --- _call_openai message format ---
+@patch("services.llm_gateway.init_chat_model")
+def test_send_to_llm_passes_messages_to_invoke(mock_init):
+    mock_llm = MagicMock()
+    mock_init.return_value = mock_llm
+    messages = [SystemMessage(content="Be helpful"), HumanMessage(content="hello")]
 
-def test_call_openai_prepends_system_prompt():
-    mock_client = MagicMock()
-    mock_client.chat.completions.create.return_value.choices[0].message.content = "ok"
+    send_to_llm(messages, "claude-haiku-4-5-20251001")
 
-    with patch("services.llm_gateway._get_openai_client", return_value=mock_client):
-        _call_openai([{"role": "user", "content": "hello"}], "Be helpful", "gpt-4o")
+    mock_llm.invoke.assert_called_once_with(messages)
 
-    messages = mock_client.chat.completions.create.call_args[1]["messages"]
-    assert messages[0] == {"role": "system", "content": "Be helpful"}
-    assert messages[1] == {"role": "user", "content": "hello"}
+
+def test_send_to_llm_unknown_model_raises():
+    with pytest.raises(ValueError, match="Unknown provider"):
+        send_to_llm([HumanMessage(content="hi")], "llama-3-70b")

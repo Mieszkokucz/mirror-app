@@ -1,6 +1,7 @@
 import os
 
 from fastapi import HTTPException
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from models.chat import Session as ChatSession, Message, MessageContext
 from models.system_prompts import SystemPrompt
 from models.reflections import DailyReflection, PeriodicReflection
@@ -234,15 +235,12 @@ async def handle_chat(
     # read whole session from db
     session_hist = load_conversation_history(db, session_id)
 
-    message_to_llm = list(
-        {"role": msg.role, "content": msg.content} for msg in session_hist
-    )
+    messages_to_llm = [SystemMessage(content=system_prompt)]
+    for msg in session_hist:
+        cls = HumanMessage if msg.role == "user" else AIMessage
+        messages_to_llm.append(cls(content=msg.content))
 
-    response = send_to_llm(
-        message_to_llm,
-        system_prompt=system_prompt,
-        model=model,
-    )
+    response = send_to_llm(messages_to_llm, model=model)
 
     # save assistant response
     db_message = Message(

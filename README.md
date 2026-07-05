@@ -147,7 +147,7 @@ app/
 ├── services/
 │   ├── conversation.py      # Chat orchestration and LLM calls
 │   ├── files.py             # File upload and storage
-│   └── llm_gateway.py       # Anthropic API wrapper
+│   └── llm_gateway.py       # LangChain wrapper (Anthropic / OpenAI)
 ├── alembic/                 # Database migrations
 ├── tests/                   # pytest test suite
 └── frontend/                # Next.js application
@@ -171,13 +171,13 @@ Tests require `TEST_DATABASE_URL` to point to a separate PostgreSQL database.
 Frontend (Next.js)
       │  HTTP / FormData
       ▼
-Router  ──►  Service  ──►  LLM Gateway  ──►  Anthropic API
+Router  ──►  Service  ──►  LLM Gateway (LangChain)  ──►  Anthropic / OpenAI API
               │
               ▼
          PostgreSQL
 ```
 
-**Chat flow:** `POST /chat/` receives a message with optional `session_id`, `prompt_id`, context reflection IDs, context file IDs, and inline file uploads. `services/conversation.py` creates a session if needed, loads the system prompt from the database, injects any attached reflections and file contents into the system prompt, saves the user message, sends the full conversation history to the Anthropic API, and persists the assistant response.
+**Chat flow:** `POST /chat/` receives a message with optional `session_id`, `prompt_id`, context reflection IDs, context file IDs, and inline file uploads. `services/conversation.py` creates a session if needed, loads the system prompt from the database, injects any attached reflections and file contents into the system prompt, saves the user message, sends the full conversation history to the LLM via LangChain, and persists the assistant response.
 
 **File storage:** Library files are saved to `uploads/{user_id}/{uuid}.ext` with SHA-256 deduplication. Text files are embedded directly into the system prompt when attached to a chat.
 

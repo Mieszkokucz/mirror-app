@@ -80,7 +80,7 @@ def test_chat_with_library_file_in_context(mock_llm, client, test_user, test_lib
         },
     )
     assert response.status_code == 200
-    system_prompt = mock_llm.call_args[1]["system_prompt"]
+    system_prompt = mock_llm.call_args[0][0][0].content
     assert "[File: test.txt]" in system_prompt
     assert "Hello from library file" in system_prompt
 
@@ -96,7 +96,7 @@ def test_chat_with_markdown_file_in_context(mock_llm, client, test_user, test_li
         },
     )
     assert response.status_code == 200
-    system_prompt = mock_llm.call_args[1]["system_prompt"]
+    system_prompt = mock_llm.call_args[0][0][0].content
     assert "[File: notes.md]" in system_prompt
     assert "Markdown heading" in system_prompt
 
@@ -138,7 +138,7 @@ def test_chat_with_direct_txt_upload(mock_llm, client, test_user):
     )
     assert response.status_code == 200
     messages = mock_llm.call_args[0][0]
-    user_message = messages[0]["content"]
+    user_message = messages[1].content
     assert "[File: inline.txt]" in user_message
     assert "inline content" in user_message
 
@@ -152,7 +152,7 @@ def test_chat_with_direct_md_upload(mock_llm, client, test_user):
     )
     assert response.status_code == 200
     messages = mock_llm.call_args[0][0]
-    user_message = messages[0]["content"]
+    user_message = messages[1].content
     assert "[File: notes.md]" in user_message
     assert "Body text" in user_message
 
